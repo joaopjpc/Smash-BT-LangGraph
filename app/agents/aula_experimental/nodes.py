@@ -205,10 +205,6 @@ def trial_collect_client_info(state: GlobalState, *, llm: Any) -> GlobalState:  
     trial["output"] = fallback       # Usa fallback simples pra pedir data/horário pela primeira vez (aqui é ok não chamar LLM)
     return export_trial_output(state) # sempre que eu uso export_trial_output(state), tenho que garantir que o trial.output está setado corretamente antes
 
-   
-
-
-
 
 # -------------------------
 # Nó 2: Pedir data/horário (terça)

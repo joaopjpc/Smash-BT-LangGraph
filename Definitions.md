@@ -1,50 +1,38 @@
-LangGraph com a seguinte estratégia:
+LangGraph — Definições do projeto
 
+Objetivo
+- Atendente do CT Smash Beach Tennis com fluxo de Aula Experimental e FAQ.
+- O grafo decide a lógica; especialistas respondem com base em regras claras.
 
+Nós (alto nível)
 
-**NÓS:**
+Assistente (nó orquestrador)
+- Recebe a mensagem do cliente (WPP no futuro).
+- Encerra o grafo e devolve a resposta final ao canal.
+- Decide se precisa de especialistas e aciona o roteador.
 
+Merge (nó agregador)
+- Recebe outputs de um ou mais especialistas e junta tudo em uma unica resposta final.
+- Cria resposta final e marca o fluxo como finalizado.
 
+FAQ (nó especialista)
+- Responde dúvidas sobre o CT: localização, planos, estrutura, serviços e regras.
+- Pode usar RAG se a base de conhecimento crescer.
 
-Assistente:
+Agendamento de Aula Experimental (WORKFLOW especialista)
+- Coleta dados do aluno e agenda aula experimental.
+- Regras fixas: aula apenas na terça-feira; formatos de data/hora padronizados.
+- Quando confirmado, registra o agendamento (hoje sem integração WPP).
 
-  Recebe mensagem do WPP e no fim envia mensagem pro WPP após grafo encerrar suas ações
+Conceitos importantes
+- Structured Output (extração estruturada).
+- TypedDict para estado do grafo.
+- Validação determinística (regras do CT).
+- NLG opcional para redigir respostas, sem decidir fluxo.
 
-  Avalia se existe necessidade de agente especialista (agendamento aula experimental/FAQ/Outros agendamentos) e caso exista, delega ao          roteador a missão de designá-los
-
-
-
-FAQ:
-
-  Nó especialista em dúvidas dos clientes, sabe tudo sobre o CT -> Infos de: Local, Planos, Estrutura, Serviços, Regras de negócio -> RAG vai depender do tamanho total dos arquivos de conhecimento
-
-
-
-Agendamento Aula Experimental:
-
-  Nó Especialista em agendamento de aula experimental. Ao confirmar o agendamento com todos os dados necessários o agente envia uma mensagem no wpp do professor principal da escolinha
-
-
-
-
-
-
-
-
-
-coisas interessantes de se usar:
-
-structured\_output
-
-TypeDict
-
-
-
-langgraph CLI 
-
-lang studio
-
-Agent Chat UI
-
+Ferramentas úteis pro futuro do projeto
+- LangGraph CLI
+- LangSmith/LangStudio
+- Agent Chat UI
 
 

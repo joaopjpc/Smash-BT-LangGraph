@@ -55,6 +55,7 @@ def after_confirm_route(state: GlobalState) -> str:
     return "END"
 
 
+# Constrói o subgrafo de Trial (Aula Experimental)
 def build_trial_graph(*, llm: Any, booking_repo: Any = None):
     """
     Constrói e compila o subgrafo.

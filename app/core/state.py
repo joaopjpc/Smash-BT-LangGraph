@@ -9,7 +9,6 @@ from typing_extensions import Annotated
 from langgraph.graph.message import AnyMessage, add_messages
 
 from app.agents.aula_experimental.state import TrialState
-from app.agents.servicos.state import ServicesState
 
 
 class GlobalState(TypedDict, total=False):
@@ -27,7 +26,7 @@ class GlobalState(TypedDict, total=False):
 
     # sub-estados
     trial: TrialState          # estado do agente de aula experimental
-    #services: ServicesState    # estado do agente de serviços 
+    # services: ServicesState  # estado do agente de serviços (standby)
 
     # resposta final
     final_answer: str
