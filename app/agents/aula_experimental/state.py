@@ -7,9 +7,10 @@ class TrialState(TypedDict, total=False):
     # --- controle do fluxo ---
     stage: Literal[
         "collect_client_info",      # solicita infos do cliente
-        "ask_tuesday",              # pergunta qual terça o aluno quer
+        "ask_date",                 # pergunta qual terça o aluno quer
         "awaiting_confirmation",    # recebe confirmação do cliente quando pergunta "confirma?"
-        "booked",                    # marca aula experimental (feito)
+        "book",                     # pronto para persistir
+        "booked",                   # marca aula experimental de fato (feito)
         "handoff_needed"            # handoff para humano
     ]
 
@@ -33,4 +34,4 @@ class TrialState(TypedDict, total=False):
     handoff_requested: bool
 
     # --- saída do especialista (pra merge) ---
-    output: Optional[str]                    # mensagem pronta do agente de aula experimental
+    output: Optional[str]                    # mensagem final a ser enviada ao cliente
