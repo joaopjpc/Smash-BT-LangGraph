@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 Base = declarative_base()
 
@@ -27,17 +27,16 @@ def get_engine():
     return _ENGINE
 
 
-SessionLocal = sessionmaker(
-    bind=get_engine(),
-    autocommit=False,
-    autoflush=False,
-    future=True,
-)
-
-
 @contextmanager
-def get_session() -> Iterator["Session"]:
-    """Context manager para sessão do banco."""
+def get_session() -> Iterator[Session]:
+    """Context manager para sessão do banco. Criação lazy do SessionLocal."""
+    engine = get_engine()
+    SessionLocal = sessionmaker(
+        bind=engine,
+        autocommit=False,
+        autoflush=False,
+        future=True,
+    )
     session = SessionLocal()
     try:
         yield session

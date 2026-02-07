@@ -15,6 +15,7 @@ Observação:
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Optional
 
 from app.core.state import GlobalState
@@ -44,7 +45,7 @@ TRIAL_FIELDS = {
 
 REQUIRED_CLIENT_FIELDS = ("nome", "idade", "nivel")
 
-# Roteador simples: não altera estado (usado em workflow.py)
+# Roteador simples: não altera estado (implementado em workflow.py)
 def trial_router(state: GlobalState) -> GlobalState:
     """Nó roteador: não altera o estado, só redireciona pelo stage."""
     return state
@@ -338,37 +339,35 @@ def trial_awaiting_confirmation(state: GlobalState, *, llm: Any) -> GlobalState:
 # Nó 4: Booking (persistência)
 # -------------------------
 
-def trial_book(state: GlobalState, *, booking_repo: Any) -> GlobalState:
+def trial_book(state: GlobalState) -> GlobalState:
     """
-    booking_repo esperado:
-      - create_trial_booking(client_id, nome, idade, nivel, desired_date, desired_time) -> booking_id
+    Nó determinístico de persistência.
+    Grava o agendamento no banco via create_trial_booking().
+    Em modo dev (sem DATABASE_URL), simula o booking.
     """
     trial = ensure_trial_defaults(state)
 
     if trial.get("booking_created"):
         trial["stage"] = "booked"
-        fallback = (
+        trial["output"] = (
             f"Seu agendamento já está registrado ✅ Terça {trial.get('desired_date')} às {trial.get('desired_time')}."
         )
-        trial["output"] = fallback
         return export_trial_output(state)
 
-    if booking_repo is None:
-        # Modo dev: não quebra o fluxo se ainda não plugou DB
+    if not os.getenv("DATABASE_URL"):
+        # Modo dev: simula o booking sem banco
         trial["stage"] = "booked"
         trial["booking_created"] = True
         trial["booking_id"] = "dev_booking"
-        fallback = (
+        trial["output"] = (
             f"(DEV) Agendado ✅ Te espero na terça {trial.get('desired_date')} às {trial.get('desired_time')}!"
         )
-        trial["output"] = fallback
         return export_trial_output(state)
 
-    booking_id = booking_repo.create_trial_booking(
-        client_id=state.get("client_id"),
-        nome=trial.get("nome"),
-        idade=trial.get("idade"),
-        nivel=trial.get("nivel"),
+    from app.agents.aula_experimental.booking import create_trial_booking
+
+    booking_id = create_trial_booking(
+        customer_id=state.get("client_id"),
         desired_date=trial.get("desired_date"),
         desired_time=trial.get("desired_time"),
     )

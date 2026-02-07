@@ -13,7 +13,6 @@ Exemplos de regras típicas aqui:
 - desired_date deve estar em formato ISO (YYYY-MM-DD).
 - desired_time deve estar em formato HH:MM (24h) e ser válido.
 - Campos obrigatórios para avançar de etapa:
-  - no stage de dados: nome/idade/nível
   - no stage de data/hora: desired_date/desired_time válidos
 
 O que este módulo NÃO faz:

@@ -12,9 +12,12 @@ Estratégia:
 
 from __future__ import annotations
 
-from typing import Any
+import os
 
+from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
+from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
 
 from app.core.state import GlobalState
 from app.agents.aula_experimental.nodes import (
@@ -47,7 +50,7 @@ def trial_route(state: GlobalState) -> str:
 
     return stage_to_node.get(stage, "trial_collect_client_info")
 
-# Após confirmação, decide se vai para book (se confirmado) ou END (se não)
+
 def after_confirm_route(state: GlobalState) -> str:
     stage = (state.get("trial") or {}).get("stage")
     if stage == "book":
@@ -55,29 +58,28 @@ def after_confirm_route(state: GlobalState) -> str:
     return "END"
 
 
-# Constrói o subgrafo de Trial (Aula Experimental)
-def build_trial_graph(*, llm: Any, booking_repo: Any = None):
+def build_trial_graph(config: RunnableConfig):
     """
-    Constrói e compila o subgrafo.
+    Factory única do subgrafo de Aula Experimental.
 
-    Parâmetros:
-    - llm: objeto LLM já configurado (com structured output no extractor).
-    - booking_repo: repositório/serviço com create_trial_booking(...). Pode ser None em DEV.
+    Aceita apenas RunnableConfig (padrão LangGraph CLI/Studio).
+    Cria o LLM internamente; persistência é feita via import direto em nodes.py.
     """
+    load_dotenv()
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    llm = ChatOpenAI(model=model, temperature=0)
+
     g = StateGraph(GlobalState)
 
-    # Para capturar dependências (llm, booking_repo), usamos lambdas/closures.
     g.add_node("trial_router", trial_router)
     g.add_node("trial_collect_client_info", lambda s: trial_collect_client_info(s, llm=llm))
     g.add_node("trial_ask_date", lambda s: trial_ask_date(s, llm=llm))
     g.add_node("trial_awaiting_confirmation", lambda s: trial_awaiting_confirmation(s, llm=llm))
-    g.add_node("trial_book", lambda s: trial_book(s, booking_repo=booking_repo))
+    g.add_node("trial_book", trial_book)
     g.add_node("trial_handoff", trial_handoff)
 
-    # Entrada sempre cai no roteador por stage:
     g.set_entry_point("trial_router")
 
-    # Roteamento por stage (retorna nome do nó ou "END")
     g.add_conditional_edges(
         "trial_router",
         trial_route,
@@ -91,15 +93,12 @@ def build_trial_graph(*, llm: Any, booking_repo: Any = None):
         },
     )
 
-    # Edges de captura de dados vão direto para END
     g.add_edge("trial_collect_client_info", END)
     g.add_edge("trial_ask_date", END)
-
-    # Edge condicional pós confirmação do cliente 
-    g.add_conditional_edges(                      # depois de confirmação, decide se vai para book ou END
-        "trial_awaiting_confirmation",            # nó de confirmação
-        after_confirm_route,                      # função de roteamento pós confirmação
-        {"trial_book": "trial_book", "END": END}, # mapeamento de destinos possíveis (trial_book se confirmado, END se não)
+    g.add_conditional_edges(
+        "trial_awaiting_confirmation",
+        after_confirm_route,
+        {"trial_book": "trial_book", "END": END},
     )
     g.add_edge("trial_book", END)
     g.add_edge("trial_handoff", END)

@@ -8,7 +8,6 @@ if ROOT not in sys.path:
     sys.path.append(ROOT)
 
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 
 from app.agents.aula_experimental.workflow import build_trial_graph
 
@@ -16,8 +15,7 @@ from app.agents.aula_experimental.workflow import build_trial_graph
 def main() -> None:
     load_dotenv()
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    graph = build_trial_graph(llm=llm)
+    graph = build_trial_graph(config={})
 
     state = {
         "client_id": "teste_001",

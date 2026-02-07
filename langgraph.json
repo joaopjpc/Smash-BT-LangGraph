@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "trial": "app.agents.aula_experimental.workflow:build_trial_graph"
+    },
+  "env": ".env"
+}

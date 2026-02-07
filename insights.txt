@@ -1,0 +1,3 @@
+LLM pode ter prompt pra falar sobre: Com seu contexto inputado sempre,
+caso alguma mensagem do cliente não tenha sido respondida, responda
+

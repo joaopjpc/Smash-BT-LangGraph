@@ -50,7 +50,7 @@ extract_trial_fields(
 )
 ```
 
-O retorno é um objeto estruturado `TrialExtraction`, por exemplo:
+O retorno é um objeto estruturado `TrialExtraction` definido em schemas.py, por exemplo:
 
 ```python
 TrialExtraction(
@@ -90,7 +90,7 @@ O nó identifica quais ainda estão ausentes:
 missing = [f for f in REQUIRED_CLIENT_FIELDS if not trial.get(f)]
 ```
 
-## 🧭 Caminhos de Decisão
+## 🧭 Caminhos de Decisão do NÓ
 
 ### 🔴 Caso 4.1 — Existem dados faltantes
 
