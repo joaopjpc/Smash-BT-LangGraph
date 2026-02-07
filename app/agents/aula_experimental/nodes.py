@@ -20,11 +20,10 @@ from typing import Any, Dict, Optional
 
 from app.core.state import GlobalState
 
-# Seu extractor/schema/validator (você já criou esses módulos)
-from app.agents.aula_experimental.extractor import extract_trial_fields
-from app.agents.aula_experimental.schemas import TrialExtraction
-from app.agents.aula_experimental.nlg import generate_trial_message
-import app.agents.aula_experimental.validators as v
+from app.agents.aula_experimental.utils_trial.extractor import extract_trial_fields
+from app.agents.aula_experimental.utils_trial.schemas import TrialExtraction
+from app.agents.aula_experimental.utils_trial.nlg import generate_trial_message
+import app.agents.aula_experimental.utils_trial.validators as v
 
 
 # -------------------------
@@ -364,7 +363,7 @@ def trial_book(state: GlobalState) -> GlobalState:
         )
         return export_trial_output(state)
 
-    from app.agents.aula_experimental.booking import create_trial_booking
+    from app.agents.aula_experimental.utils_trial.booking import create_trial_booking
 
     booking_id = create_trial_booking(
         customer_id=state.get("client_id"),

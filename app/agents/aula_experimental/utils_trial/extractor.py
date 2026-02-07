@@ -32,8 +32,8 @@ Benefícios:
 
 from __future__ import annotations
 from datetime import datetime
-from app.agents.aula_experimental.schemas import TrialExtraction
-from app.agents.aula_experimental.prompts import TRIAL_EXTRACT_SYSTEM
+from app.agents.aula_experimental.utils_trial.schemas import TrialExtraction
+from app.agents.aula_experimental.utils_trial.prompts import TRIAL_EXTRACT_SYSTEM
 
 # Função para construir o prompt do usuário informando o contexto atual (stage atual, snapshot do trial, texto do cliente)
 def build_extract_user_prompt(*, client_text: str, stage: str, trial_snapshot: dict, now_iso: str) -> str:

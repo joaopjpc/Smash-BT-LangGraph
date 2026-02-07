@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from app.agents.aula_experimental.prompts import TRIAL_NLG_SYSTEM
+from app.agents.aula_experimental.utils_trial.prompts import TRIAL_NLG_SYSTEM
 
 # Função principal de geração de mensagens baseada em LLM e no contexto do trial recebido
 def generate_trial_message(
