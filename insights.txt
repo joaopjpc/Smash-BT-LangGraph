@@ -4,3 +4,6 @@ caso alguma mensagem do cliente não tenha sido respondida, responda
 sem backend thread_id e client_id não vão existir ainda, pois serão assuntos sobre
 número de telefone empresa (juntos formam client_id(precisam ser od dois pra ser multi-tenancy))
 e conversa do wpp especifica (thread_id?). LangStudio tem thread_id automatica
+
+escolher modelos diferentes de llm pra cada tarefa/função/nó com runnablecongi['configurable']
+

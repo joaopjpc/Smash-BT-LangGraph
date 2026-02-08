@@ -21,3 +21,8 @@ Thumbs.db
 .ruff_cache/
 
 .langgraph_api/
+
+
+CLAUDE.md
+AGENT.md 
+insights.txt

@@ -18,11 +18,13 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
+from langchain_core.runnables import RunnableConfig
 from app.core.state import GlobalState
 
 from app.agents.aula_experimental.utils_trial.extractor import extract_trial_fields
 from app.agents.aula_experimental.utils_trial.schemas import TrialExtraction
 from app.agents.aula_experimental.utils_trial.nlg import generate_trial_message
+from app.agents.aula_experimental.utils_trial.get_llm import get_llm
 import app.agents.aula_experimental.utils_trial.validators as v
 
 
@@ -45,7 +47,7 @@ TRIAL_FIELDS = {
 REQUIRED_CLIENT_FIELDS = ("nome", "idade", "nivel")
 
 # Roteador simples: não altera estado (implementado em workflow.py)
-def trial_router(state: GlobalState) -> GlobalState:
+def trial_router(state: GlobalState, config: RunnableConfig) -> GlobalState:
     """Nó roteador: não altera o estado, só redireciona pelo stage."""
     return state
 
@@ -131,9 +133,9 @@ def export_trial_output(state: GlobalState) -> GlobalState:
     return state
 
 # Função auxiliar para chamar NLG (com fallback caso LLM falhe)
-def _fallback_or_nlg(*, llm: Any, stage: str, action: str, missing_fields: Optional[list[str]], error_code: Optional[str], trial: Dict[str, Any], fallback: str) -> str:
+def _fallback_or_nlg(*, stage: str, action: str, missing_fields: Optional[list[str]], error_code: Optional[str], trial: Dict[str, Any], fallback: str) -> str:
     msg = generate_trial_message(
-        llm,
+        get_llm(),
         stage=stage,
         action=action,
         missing_fields=missing_fields,
@@ -147,9 +149,10 @@ def _fallback_or_nlg(*, llm: Any, stage: str, action: str, missing_fields: Optio
 # Nó 1: Coletar dados
 # -------------------------
 
-def trial_collect_client_info(state: GlobalState, *, llm: Any) -> GlobalState:  # Recebe: estado global + LLM
+def trial_collect_client_info(state: GlobalState, config: RunnableConfig) -> GlobalState:
     trial = ensure_trial_defaults(state)            # Garante trial no estado global
     text = state.get("client_input", "") or ""      # Pega input do cliente (texto)
+    llm = get_llm()
 
     extraction: TrialExtraction = extract_trial_fields( # Chama extractor LLM -> TrialExtraction para extrair dados do texto
         llm,
@@ -171,11 +174,10 @@ def trial_collect_client_info(state: GlobalState, *, llm: Any) -> GlobalState:  
                 parts.append("seu nível (iniciante/intermediário/avançado)")
         trial["stage"] = "collect_client_info"
         fallback = "Para agendar sua aula experimental, me diga: " + ", ".join(parts) + "." # Mensagem fallback pra auditoria ou falha da LLM
-        trial["output"] = _fallback_or_nlg(       # Chama NLG ou usa fallback 
-            llm=llm,
-            stage="collect_client_info",          # Passa stage 
+        trial["output"] = _fallback_or_nlg(       # Chama NLG ou usa fallback
+            stage="collect_client_info",          # Passa stage
             action="ask_missing_client_fields",   # Passa action
-            missing_fields=missing,               # Passa campos faltantes 
+            missing_fields=missing,               # Passa campos faltantes
             error_code=None,
             trial=trial,                          # Passa trial snapshot pro NLG
             fallback=fallback,
@@ -210,9 +212,10 @@ def trial_collect_client_info(state: GlobalState, *, llm: Any) -> GlobalState:  
 # Nó 2: Pedir data/horário (terça)
 # -------------------------
 
-def trial_ask_date(state: GlobalState, *, llm: Any) -> GlobalState:
+def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
     trial = ensure_trial_defaults(state)
     text = state.get("client_input", "") or ""
+    llm = get_llm()
 
     extraction: TrialExtraction = extract_trial_fields(
         llm,
@@ -249,7 +252,6 @@ def trial_ask_date(state: GlobalState, *, llm: Any) -> GlobalState:
             fallback = "Não consegui validar a data/horário. Pode informar a terça (data) e o horário novamente?"
 
         trial["output"] = _fallback_or_nlg(
-            llm=llm,
             stage="ask_date",
             action="ask_date_time",
             missing_fields=None,
@@ -262,7 +264,6 @@ def trial_ask_date(state: GlobalState, *, llm: Any) -> GlobalState:
     trial["stage"] = "awaiting_confirmation"
     fallback = f"Confirma sua aula experimental na terça {trial['desired_date']} às {trial['desired_time']}?"
     trial["output"] = _fallback_or_nlg(
-        llm=llm,
         stage="awaiting_confirmation",
         action="ask_confirmation",
         missing_fields=None,
@@ -277,9 +278,10 @@ def trial_ask_date(state: GlobalState, *, llm: Any) -> GlobalState:
 # Nó 3: Confirmação
 # -------------------------
 
-def trial_awaiting_confirmation(state: GlobalState, *, llm: Any) -> GlobalState:
+def trial_awaiting_confirmation(state: GlobalState, config: RunnableConfig) -> GlobalState:
     trial = ensure_trial_defaults(state)
     text = state.get("client_input", "") or ""
+    llm = get_llm()
 
     extraction: TrialExtraction = extract_trial_fields(
         llm,
@@ -295,7 +297,6 @@ def trial_awaiting_confirmation(state: GlobalState, *, llm: Any) -> GlobalState:
         trial["stage"] = "awaiting_confirmation"
         fallback = "Só pra confirmar: sim ou não?"
         trial["output"] = _fallback_or_nlg(
-            llm=llm,
             stage="awaiting_confirmation",
             action="ask_confirmation",
             missing_fields=None,
@@ -309,7 +310,6 @@ def trial_awaiting_confirmation(state: GlobalState, *, llm: Any) -> GlobalState:
         trial["stage"] = "ask_date"
         fallback = "Sem problemas. Qual terça e horário você prefere então?"
         trial["output"] = _fallback_or_nlg(
-            llm=llm,
             stage="ask_date",
             action="ask_date_time",
             missing_fields=None,
@@ -323,7 +323,6 @@ def trial_awaiting_confirmation(state: GlobalState, *, llm: Any) -> GlobalState:
     trial["stage"] = "book"
     fallback = "Perfeito! Vou registrar seu agendamento agora."
     trial["output"] = _fallback_or_nlg(
-        llm=llm,
         stage="book",
         action="book_start",
         missing_fields=None,
@@ -338,7 +337,7 @@ def trial_awaiting_confirmation(state: GlobalState, *, llm: Any) -> GlobalState:
 # Nó 4: Booking (persistência)
 # -------------------------
 
-def trial_book(state: GlobalState) -> GlobalState:
+def trial_book(state: GlobalState, config: RunnableConfig) -> GlobalState:
     """
     Nó determinístico de persistência.
     Grava o agendamento no banco via create_trial_booking().
@@ -378,13 +377,3 @@ def trial_book(state: GlobalState) -> GlobalState:
     return export_trial_output(state)
 
 
-# -------------------------
-# Nó 5: Handoff
-# -------------------------
-
-def trial_handoff(state: GlobalState) -> GlobalState:
-    trial = ensure_trial_defaults(state)
-    trial["stage"] = "handoff_needed"
-    fallback = "Vou chamar um atendente humano para te ajudar melhor."
-    trial["output"] = fallback
-    return export_trial_output(state)

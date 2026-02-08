@@ -12,12 +12,8 @@ Estratégia:
 
 from __future__ import annotations
 
-import os
-
-from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
 
 from app.core.state import GlobalState
 from app.agents.aula_experimental.nodes import (
@@ -26,7 +22,6 @@ from app.agents.aula_experimental.nodes import (
     trial_ask_date,
     trial_awaiting_confirmation,
     trial_book,
-    trial_handoff,
     trial_router,
 )
 
@@ -45,7 +40,6 @@ def trial_route(state: GlobalState) -> str:
         "awaiting_confirmation": "trial_awaiting_confirmation",
         "book": "trial_book",
         "booked": "END",
-        "handoff_needed": "trial_handoff",
     }
 
     return stage_to_node.get(stage, "trial_collect_client_info")
@@ -65,18 +59,13 @@ def build_trial_graph(config: RunnableConfig):
     Aceita apenas RunnableConfig (padrão LangGraph CLI/Studio).
     Cria o LLM internamente; persistência é feita via import direto em nodes.py.
     """
-    load_dotenv()
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    llm = ChatOpenAI(model=model, temperature=0)
-
     g = StateGraph(GlobalState)
 
     g.add_node("trial_router", trial_router)
-    g.add_node("trial_collect_client_info", lambda s: trial_collect_client_info(s, llm=llm))
-    g.add_node("trial_ask_date", lambda s: trial_ask_date(s, llm=llm))
-    g.add_node("trial_awaiting_confirmation", lambda s: trial_awaiting_confirmation(s, llm=llm))
+    g.add_node("trial_collect_client_info", trial_collect_client_info)
+    g.add_node("trial_ask_date", trial_ask_date)
+    g.add_node("trial_awaiting_confirmation", trial_awaiting_confirmation)
     g.add_node("trial_book", trial_book)
-    g.add_node("trial_handoff", trial_handoff)
 
     g.set_entry_point("trial_router")
 
@@ -88,7 +77,6 @@ def build_trial_graph(config: RunnableConfig):
             "trial_ask_date": "trial_ask_date",
             "trial_awaiting_confirmation": "trial_awaiting_confirmation",
             "trial_book": "trial_book",
-            "trial_handoff": "trial_handoff",
             "END": END,
         },
     )
@@ -101,6 +89,5 @@ def build_trial_graph(config: RunnableConfig):
         {"trial_book": "trial_book", "END": END},
     )
     g.add_edge("trial_book", END)
-    g.add_edge("trial_handoff", END)
 
     return g.compile()
