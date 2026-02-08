@@ -13,7 +13,7 @@ Princípios:
 - Tudo é opcional: o LLM só preenche campos quando a informação estiver explícita.
 - Não inventar: se não tiver certeza, o campo deve ser null/None.
 - Normalização:
-  - desired_date deve ser YYYY-MM-DD
+  - desired_date deve ser dd-mm (dia-mês, ano assumido como atual)
   - desired_time deve ser HH:MM (24h)
 - confirmed:
   - true para confirmação clara (sim / confirmo / pode marcar)
@@ -38,7 +38,7 @@ class TrialExtraction(BaseModel):
     nivel: Optional[Nivel] = Field(default=None, description="Nível do aluno.")
 
     # Data/hora (normalizados)
-    desired_date: Optional[str] = Field(default=None, description="Data no formato YYYY-MM-DD.")
+    desired_date: Optional[str] = Field(default=None, description="Data no formato dd-mm (dia-mês, sem ano).")
     desired_time: Optional[str] = Field(default=None, description="Horário no formato HH:MM (24h).")
 
     # Confirmação (apenas quando usuário respondeu sim/não)

@@ -10,7 +10,8 @@ Importante:
 
 Exemplos de regras típicas aqui:
 - desired_date deve ser uma terça-feira.
-- desired_date deve estar em formato ISO (YYYY-MM-DD).
+- desired_date deve estar em formato dd-mm (dia-mês, ano assumido como atual).
+- desired_date deve ser uma data futura.
 - desired_time deve estar em formato HH:MM (24h) e ser válido.
 - Campos obrigatórios para avançar de etapa:
   - no stage de data/hora: desired_date/desired_time válidos
@@ -30,21 +31,29 @@ Resultado:
 
 
 from __future__ import annotations
-from datetime import date
-from typing import Optional, Tuple
+from typing import Optional
 from pydantic import BaseModel
 import datetime as dt
+
 
 class ValidationResult(BaseModel):
     ok: bool
     error: Optional[str] = None
 
-def is_iso_date(s: str) -> bool:
+
+def parse_ddmm_date(s: str) -> dt.date | None:
+    """Converte 'dd-mm' em date assumindo o ano atual. Retorna None se inválido."""
     try:
-        dt.date.fromisoformat(s)
-        return True
-    except Exception:
-        return False
+        day, month = s.strip().split("-")
+        return dt.date(dt.date.today().year, int(month), int(day))
+    except (ValueError, AttributeError):
+        return None
+
+
+def is_future_date(d: dt.date) -> bool:
+    """Retorna True se a data é estritamente futura (depois de hoje)."""
+    return d > dt.date.today()
+
 
 def is_iso_time_hhmm(s: str) -> bool:
     try:
@@ -53,17 +62,18 @@ def is_iso_time_hhmm(s: str) -> bool:
     except Exception:
         return False
 
-def is_tuesday(iso_date: str) -> bool:
-    d = dt.date.fromisoformat(iso_date)
-    return d.weekday() == 1  # terça
 
 def validate_date_time(desired_date: Optional[str], desired_time: Optional[str]) -> ValidationResult:
     if desired_date is None:
         return ValidationResult(ok=False, error="missing_date")
-    if not is_iso_date(desired_date):
+
+    d = parse_ddmm_date(desired_date)
+    if d is None:
         return ValidationResult(ok=False, error="invalid_date_format")
-    if not is_tuesday(desired_date):
+    if d.weekday() != 1:  # não é terça
         return ValidationResult(ok=False, error="not_tuesday")
+    if not is_future_date(d):
+        return ValidationResult(ok=False, error="past_date")
 
     if desired_time is None:
         return ValidationResult(ok=False, error="missing_time")

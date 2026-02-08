@@ -11,7 +11,6 @@ class TrialState(TypedDict, total=False):
         "awaiting_confirmation",    # recebe confirmação do cliente quando pergunta "confirma?"
         "book",                     # pronto para persistir
         "booked",                   # marca aula experimental de fato (feito)
-        "handoff_needed"            # handoff para humano
     ]
 
     # --- infos do cliente ---
@@ -29,9 +28,6 @@ class TrialState(TypedDict, total=False):
     # --- persistência ---
     booking_id: Optional[str]                # id da reserva no DB (uuid/int str)
     booking_created: bool                    # idempotência (não duplicar)
-
-    # handoff (sem emergencial)
-    handoff_requested: bool
 
     # --- saída do especialista (pra merge) ---
     output: Optional[str]                    # mensagem final a ser enviada ao cliente

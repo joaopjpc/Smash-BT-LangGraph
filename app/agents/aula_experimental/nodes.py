@@ -60,7 +60,6 @@ def ensure_trial_defaults(state: GlobalState) -> Dict[str, Any]:
     # função seta default somente se não existir nada no campo.
     trial.setdefault("stage", DEFAULT_STAGE) # Trial só é vazio na primeira vez entao seta collect_client_info pra começo do fluxo 
     trial.setdefault("booking_created", False)
-    trial.setdefault("handoff_requested", False)
     trial.setdefault("output", None)
 
     state["trial"] = trial                   # atualiza estado global com trial atualizado
@@ -185,7 +184,7 @@ def trial_collect_client_info(state: GlobalState, config: RunnableConfig) -> Glo
         return export_trial_output(state)  # Exporta saída pro estado global "specialists_outputs" e retorna estado atualizado
 
     trial["stage"] = "ask_date"   # Caso não tenha campos faltando, avança para próxima etapa: pedir data/horário
-    fallback = "A aula experimental é toda terça. Qual terça (dia do mês) e horário você prefere?"
+    fallback = "A aula experimental é toda terça. Qual terça (dd-mm) e horário você prefere? Ex: 10-02 às 19:00."
 
     # trial["output"] = _fallback_or_nlg(  # Chama NLG ou usa fallback pra pedir data/horário
     #     llm=llm,
@@ -236,20 +235,22 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
     if not ok:
         trial["stage"] = "ask_date"
 
-        # Mensagens por erro (você pode ajustar à vontade)
+        # Mensagens por erro
         if code == "missing_date":
-            fallback = "Me diga a data exata da terça (YYYY-MM-DD ou dd/mm/aaaa) e o horário."
+            fallback = "Me diga a data exata da terça (dd-mm) e o horário. Ex: 10-02 às 19:00."
         elif code == "invalid_date_format":
-            fallback = "A data precisa estar clara. Pode me dizer a terça em formato dd/mm/aaaa e o horário?"
+            fallback = "A data precisa estar no formato dd-mm (ex: 10-02). Pode informar novamente?"
         elif code == "not_tuesday":
-            fallback = "A aula experimental acontece somente na terça. Qual terça e horário você prefere?"
+            fallback = "A aula experimental acontece somente na terça. Qual terça (dd-mm) e horário você prefere?"
+        elif code == "past_date":
+            fallback = "Essa data já passou. Qual a próxima terça (dd-mm) que você prefere?"
         elif code == "missing_time":
             dd = trial.get("desired_date") or "essa terça"
             fallback = f"Fechado para {dd}. Qual horário você prefere? (ex: 19:00)"
         elif code == "invalid_time_format":
             fallback = "O horário precisa estar claro (ex: 19:00). Qual horário você prefere?"
         else:
-            fallback = "Não consegui validar a data/horário. Pode informar a terça (data) e o horário novamente?"
+            fallback = "Não consegui validar a data/horário. Pode informar a terça (dd-mm) e o horário novamente?"
 
         trial["output"] = _fallback_or_nlg(
             stage="ask_date",

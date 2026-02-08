@@ -4,7 +4,7 @@ booking.py — Persistência de agendamento de aula experimental.
 Chamado diretamente pelo nó trial_book (nodes.py).
 
 O que faz:
-- Combina desired_date (YYYY-MM-DD) e desired_time (HH:MM) em um único
+- Combina desired_date (dd-mm) e desired_time (HH:MM) em um único
   datetime para gravar na coluna desired_datetime (timestamptz) do banco.
 - Insere uma linha em trial_class_booking e retorna o booking_id (uuid).
 
@@ -33,13 +33,16 @@ def create_trial_booking(
 
     Args:
         customer_id: ID do cliente (referência customer.id).
-        desired_date: Data no formato YYYY-MM-DD.
+        desired_date: Data no formato dd-mm (dia-mês, ano assumido como atual).
         desired_time: Horário no formato HH:MM.
 
     Returns:
         booking_id: UUID (string) da reserva criada.
     """
-    desired_datetime = datetime.fromisoformat(f"{desired_date}T{desired_time}:00")
+    day, month = desired_date.split("-")
+    year = datetime.now().year
+    hour, minute = desired_time.split(":")
+    desired_datetime = datetime(year, int(month), int(day), int(hour), int(minute))
     booking_id = str(uuid.uuid4())
 
     with get_session() as session:
