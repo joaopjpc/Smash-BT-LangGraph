@@ -9,6 +9,24 @@ from typing import Optional
 
 from app.agents.aula_experimental.utils_trial.prompts import TRIAL_NLG_SYSTEM
 
+
+def _format_snapshot(snapshot: dict) -> str:
+    """Converte o snapshot do trial em texto legível para o prompt da NLG."""
+    if not snapshot:
+        return "(vazio)"
+    labels = {
+        "nome": "Nome", "idade": "Idade", "nivel": "Nível",
+        "desired_date": "Data", "desired_time": "Horário",
+        "confirmed": "Confirmado", "stage": "Etapa",
+    }
+    lines = []
+    for key, label in labels.items():
+        val = snapshot.get(key)
+        if val is not None:
+            lines.append(f"- {label}: {val}")
+    return "\n".join(lines) if lines else "(vazio)"
+
+
 # Função principal de geração de mensagens baseada em LLM e no contexto do trial recebido
 def generate_trial_message(
     llm,
@@ -33,7 +51,8 @@ Stage: {stage}
 Action: {action}
 Missing_fields: {missing_fields}
 Error_code: {error_code}
-Trial_snapshot: {trial_snapshot}
+Trial_snapshot:
+{_format_snapshot(trial_snapshot)}
 
 Escreva UMA mensagem curta e direta ao usuário.
 """

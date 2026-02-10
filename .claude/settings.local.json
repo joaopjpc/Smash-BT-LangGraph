@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(gh auth status:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "WebFetch(domain:rasa.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:kalle.wtf)",
+      "WebFetch(domain:shshell.com)",
+      "WebFetch(domain:docs.langchain.com)"
     ]
   }
 }

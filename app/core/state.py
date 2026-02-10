@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import operator
-from typing import Dict, List, TypedDict
+from typing import Dict, List
 
-from typing_extensions import Annotated
+from typing_extensions import Annotated, TypedDict
 
 from langgraph.graph.message import AnyMessage, add_messages
 
@@ -21,7 +21,7 @@ class GlobalState(TypedDict, total=False):
 
     # roteamento / coordenação
     router_input: str            # entrada para o roteador
-    active_routes: List[str]     # rotas ativas no momento
+    active_routes: List[str]     # rotas ativas (triage decide só pro turno atual (com contexto))
     specialists_outputs: Annotated[Dict[str, str], operator.or_] # saídas dos especialistas
 
     # sub-estados

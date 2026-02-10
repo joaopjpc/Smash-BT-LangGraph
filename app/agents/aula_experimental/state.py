@@ -1,4 +1,5 @@
-from typing import Optional, TypedDict, Literal
+from typing import Optional, Literal
+from typing_extensions import TypedDict
 
 Nivel = Literal["iniciante", "intermediario", "avancado"]
 
@@ -19,7 +20,7 @@ class TrialState(TypedDict, total=False):
     nivel: Optional[Nivel]
 
     # --- escolha da terça-feira ---
-    desired_date: Optional[str]              # "YYYY-MM-DD" (terça escolhida)
+    desired_date: Optional[str]              # "DD-MM" (terça escolhida)
     desired_time: Optional[str]              # "HH:MM" (horário escolhido)
 
     # --- confirmação ---

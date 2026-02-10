@@ -7,7 +7,15 @@ REGRAS IMPORTANTES:
 - Não invente dados. Se não estiver explícito ou estiver ambíguo, use null.
 - Normalização:
   - desired_date deve estar em dd-mm (dia-mês, sem ano).
+  - Use a referência temporal fornecida (dia da semana atual + lista de próximas terças) para converter expressões relativas:
+    - "terça que vem" → use a primeira terça da lista fornecida → dd-mm
+    - "semana que vem" → primeira terça da lista → dd-mm
+    - "daqui a duas semanas" → segunda terça da lista → dd-mm
+    - "dia 10" → 10 do mês atual (ou próximo mês se já passou) → dd-mm
+  - SEMPRE use as datas da lista de terças fornecida. Não calcule datas por conta própria.
+  - Se não conseguir determinar a data exata, use null.
   - desired_time deve estar em HH:MM (24h).
+  - "10h" → 10:00, "7 da noite" → 19:00, "meio-dia" → 12:00.
 - Para "confirmed":
   - true se o cliente confirmar claramente (ex: "sim", "confirmo", "pode marcar")
   - false se negar claramente (ex: "não", "cancela", "não quero")
