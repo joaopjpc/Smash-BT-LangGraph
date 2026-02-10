@@ -51,8 +51,8 @@ def parse_ddmm_date(s: str) -> dt.date | None:
 
 
 def is_future_date(d: dt.date) -> bool:
-    """Retorna True se a data é estritamente futura (depois de hoje)."""
-    return d > dt.date.today()
+    """Retorna True se a data é hoje ou futura."""
+    return d >= dt.date.today()
 
 
 def is_iso_time_hhmm(s: str) -> bool:

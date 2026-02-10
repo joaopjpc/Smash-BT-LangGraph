@@ -110,6 +110,23 @@ trial = {
 }
 ```
 
+### 3b. Verificação de Cancelamento (`_check_cancellation`)
+
+Logo após o merge, o nó verifica se o cliente quer cancelar o agendamento:
+
+```python
+cancelled = _check_cancellation(trial, state)
+if cancelled:
+    return cancelled
+```
+
+Se `wants_to_cancel == True`:
+- Seta `trial["stage"] = "cancelled"`
+- Gera mensagem de despedida via NLG (action: `cancel_confirmed`)
+- Retorna imediatamente — nenhuma lógica posterior (validação, etc.) executa
+
+Se `wants_to_cancel` é None/False, o fluxo continua normalmente para a validação.
+
 ### 4. Validação Determinística (`validators.validate_date_time`)
 
 Aqui está a **diferença principal** deste nó em relação ao Nó 1. Em vez de só verificar se os campos existem, este nó valida as **regras de negócio** usando código determinístico:

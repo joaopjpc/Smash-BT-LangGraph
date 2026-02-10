@@ -108,7 +108,7 @@ def triage(state: GlobalState, config: RunnableConfig) -> dict:
 
     # Montar contexto de conversa ativa (se houver)
     active_context = None
-    if stage and stage != "booked": # se tiver stage e nao for etapa final (booked), considera que cliente esta no meio do agendamento
+    if stage and stage not in ("booked", "cancelled"): # se tiver stage e nao for etapa final (booked/cancelled), considera que cliente esta no meio do agendamento
         active_context = f"Cliente esta no meio de um agendamento de aula experimental (etapa: {stage})"
 
     result = _classify_intent(text, active_context)

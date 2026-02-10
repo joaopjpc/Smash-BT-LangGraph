@@ -8,3 +8,8 @@ e conversa do wpp especifica (thread_id?). LangStudio tem thread_id automatica
 escolher modelos diferentes de llm pra cada tarefa/função/nó com runnablecongi['configurable']
 
 coa.dev é pra observabilidade de AGENTES caso um dia transitemos de worfklow pra agentes
+
+Hoje: tenho um triage que leva pra dois caminhos possiveis e merge pra unir. Caso tenha 2 assuntos
+no mesmo input, então meu grafo segue pra dois caiminhos (graph.py - 'send'). Mas os dois recebem
+o input inteiro, entao tenho estrategias no prompt deles e do merge pra evitar de aceitar
+pedaços de resposta que nao sejam deles (ex: trial querendo responder infos ou FAQ agendar)

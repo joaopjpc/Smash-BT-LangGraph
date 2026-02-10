@@ -55,9 +55,11 @@ Solucao: o triage verifica `trial.stage` no estado (persistido pelo checkpointer
 
 ```python
 active_context = None
-if stage and stage != "booked":
+if stage and stage not in ("booked", "cancelled"):
     active_context = f"Cliente esta no meio de um agendamento de aula experimental (etapa: {stage})"
 ```
+
+> **Nota:** `"cancelled"` é tratado como terminal (igual `"booked"`). Quando o cliente desiste do agendamento, o triage para de passar contexto ativo e volta a classificar normalmente.
 
 O LLM recebe:
 
@@ -85,7 +87,7 @@ O contexto NAO engessa o roteamento. Mesmo mid-trial:
 ```
 triage recebe client_input
     │
-    ├─ trial.stage existe e != "booked"?
+    ├─ trial.stage existe e not in ("booked", "cancelled")?
     │     sim → monta active_context com a etapa atual
     │     nao → active_context = None
     │
@@ -170,7 +172,7 @@ O triage NAO persiste nada proprio — usa dados que ja estao no estado:
 - `trial.stage`: persistido pelo checkpointer entre turnos
 - `active_routes`: transiente, sobrescrito a cada turno
 
-O checkpointer garante que `trial.stage` sobrevive entre turnos. Quando `trial.stage = "booked"`, o triage para de passar contexto ativo e volta a classificar normalmente.
+O checkpointer garante que `trial.stage` sobrevive entre turnos. Quando `trial.stage` e `"booked"` ou `"cancelled"`, o triage para de passar contexto ativo e volta a classificar normalmente.
 
 ## Arquivo
 

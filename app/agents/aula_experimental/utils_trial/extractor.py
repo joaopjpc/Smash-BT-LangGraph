@@ -45,9 +45,11 @@ def _next_tuesdays(n: int = 4) -> list[str]:
     """Retorna as próximas N terças-feiras futuras em formato dd-mm."""
     today = datetime.now().date()
     days_ahead = (1 - today.weekday()) % 7  # 1 = terça
-    if days_ahead == 0:
-        days_ahead = 7  # hoje é terça → pula pra próxima
     tuesdays = []
+    if days_ahead == 0:
+        # hoje é terça → incluir hoje na lista
+        tuesdays.append(f"{today.day:02d}-{today.month:02d}")
+        days_ahead = 7  # próximas terças começam daqui a 7 dias
     d = today + timedelta(days=days_ahead)
     for _ in range(n):
         tuesdays.append(f"{d.day:02d}-{d.month:02d}")

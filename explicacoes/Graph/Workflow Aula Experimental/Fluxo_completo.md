@@ -478,6 +478,63 @@ trial["stage"] = "ask_date"    # VOLTA pro stage de data!
 
 ---
 
+## TURNO alternativo — Cancelamento (qualquer estágio)
+
+**Input:** `"Esse mês não vou conseguir, deixa pra lá"`
+
+Pode acontecer em qualquer nó que chama o extractor (Nó 1, 2 ou 3).
+
+### Extração
+
+```python
+TrialExtraction(
+    nome=None, idade=None, nivel=None,
+    desired_date=None, desired_time=None,
+    confirmed=None,
+    wants_to_cancel=True,    # ← NOVO campo
+)
+```
+
+### merge_trial + _check_cancellation
+
+```python
+merge_trial(trial, extraction)        # wants_to_cancel=True → trial["wants_to_cancel"] = True
+
+cancelled = _check_cancellation(trial, state)  # detecta wants_to_cancel == True
+# → trial["stage"] = "cancelled"
+# → trial["output"] = NLG com action="cancel_confirmed"
+# → retorna imediatamente (nenhuma lógica posterior executa)
+```
+
+### Estado após cancelamento
+
+```python
+trial = {
+    "stage": "cancelled",          # ← TERMINAL
+    "nome": "João",                # preservado
+    "idade": 27,                   # preservado
+    "wants_to_cancel": True,
+    "output": "Sem problemas! Quando quiser agendar, é só me chamar. Até mais!",
+}
+```
+
+### Próxima mensagem no mesmo thread
+
+Se o cliente mandar "quero agendar" no mesmo thread:
+- Triage vê `stage == "cancelled"` → sem contexto ativo
+- Classifica como `["trial"]` → roteia pro trial
+- `trial_route` vê `stage == "cancelled"` → retorna `END`
+- **Não faz nada** — "cancelled" é terminal, precisa de novo thread
+
+### Diferença: wants_to_cancel vs confirmed=false
+
+| Campo | Significado | Exemplo | Resultado |
+|---|---|---|---|
+| `confirmed: false` | "Não quero essa data" | "Não, muda pra 19h" | Volta pra ask_date |
+| `wants_to_cancel: true` | "Desisto do agendamento" | "Deixa pra lá" | Stage → cancelled (terminal) |
+
+---
+
 ## Resumo Visual: Arquivos envolvidos por turno
 
 ```
@@ -495,6 +552,7 @@ Mensagem do cliente
 │  1. ensure_trial_defaults()     │  → nodes.py (helper)
 │  2. extract_trial_fields()      │  → extractor.py → schemas.py → prompts.py (TRIAL_EXTRACT_SYSTEM)
 │  3. merge_trial()               │  → nodes.py (helper) — acumula dados sem apagar
+│  3b. _check_cancellation()      │  → nodes.py (helper) — se wants_to_cancel, seta cancelled e retorna
 │  4. validators (se ask_date)    │  → validators.py (validate_date_time)
 │  5. Decide: avança ou repete?   │  → nodes.py (lógica determinística)
 │  6. _fallback_or_nlg()          │  → nlg.py → prompts.py (TRIAL_NLG_SYSTEM)
@@ -514,6 +572,7 @@ Mensagem do cliente
 | ensure_trial_defaults | Não (seta default) | Seta defaults se vazio | Não |
 | extract_trial_fields | Não | Não (retorna TrialExtraction) | SIM (structured output) |
 | merge_trial | Não | SIM (campos não-nulos) | Não |
+| _check_cancellation | SIM (→ cancelled) | Não | SIM (NLG) |
 | validate_date_time | Não | Não | Não |
 | _fallback_or_nlg | Não | Não | SIM (texto livre) |
 | export_trial_output | Não | Não | Não |

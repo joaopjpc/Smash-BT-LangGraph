@@ -42,6 +42,7 @@ TRIAL_FIELDS = {
     "desired_date",
     "desired_time",
     "confirmed",
+    "wants_to_cancel",
 }
 
 REQUIRED_CLIENT_FIELDS = ("nome", "idade", "nivel")
@@ -132,7 +133,7 @@ def export_trial_output(state: GlobalState) -> GlobalState:
     return state
 
 # Função auxiliar para chamar NLG (com fallback caso LLM falhe)
-def _fallback_or_nlg(*, stage: str, action: str, missing_fields: Optional[list[str]], error_code: Optional[str], trial: Dict[str, Any], fallback: str) -> str:
+def _fallback_or_nlg(*, stage: str, action: str, missing_fields: Optional[list[str]], error_code: Optional[str], trial: Dict[str, Any], fallback: str, client_text: Optional[str] = None) -> str:
     msg = generate_trial_message(
         get_llm(),
         stage=stage,
@@ -140,8 +141,26 @@ def _fallback_or_nlg(*, stage: str, action: str, missing_fields: Optional[list[s
         missing_fields=missing_fields,
         error_code=error_code,
         trial_snapshot=trial,
+        client_text=client_text,
     )
     return msg or fallback
+
+
+# Função auxiliar para checar cancelamento (usada em 3 nós)
+def _check_cancellation(trial: Dict[str, Any], state: GlobalState) -> Optional[GlobalState]:
+    """Se wants_to_cancel == True, seta cancelled e retorna state. Senão retorna None."""
+    if not trial.get("wants_to_cancel"):
+        return None
+    trial["stage"] = "cancelled"
+    trial["output"] = _fallback_or_nlg(
+        stage="cancelled",
+        action="cancel_confirmed",
+        missing_fields=None,
+        error_code=None,
+        trial=trial,
+        fallback="Sem problemas! Quando quiser agendar, é só me chamar. Até mais!",
+    )
+    return export_trial_output(state)
 
 
 # -------------------------
@@ -160,6 +179,10 @@ def trial_collect_client_info(state: GlobalState, config: RunnableConfig) -> Glo
         trial_snapshot=trial,
     )
     merge_trial(trial, extraction)                      # Faz merge seguro dos dados extraídos pro trial atual
+
+    cancelled = _check_cancellation(trial, state)       # Checa se cliente quer cancelar
+    if cancelled:
+        return cancelled
 
     missing = [f for f in REQUIRED_CLIENT_FIELDS if not trial.get(f)] # Verifica campos obrigatórios faltantes
     if missing:                                                       # Se tiver campos faltando...
@@ -180,6 +203,7 @@ def trial_collect_client_info(state: GlobalState, config: RunnableConfig) -> Glo
             error_code=None,
             trial=trial,                          # Passa trial snapshot pro NLG
             fallback=fallback,
+            client_text=text,
         )
         return export_trial_output(state)  # Exporta saída pro estado global "specialists_outputs" e retorna estado atualizado
 
@@ -224,6 +248,10 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
     )
     merge_trial(trial, extraction)
 
+    cancelled = _check_cancellation(trial, state)
+    if cancelled:
+        return cancelled
+
     # Usa validator do seu módulo (com fallback defensivo de API)
     if hasattr(v, "validate_date_time"):
         ok, code = _validation_result_to_code(
@@ -259,6 +287,7 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
             error_code=code,
             trial=trial,
             fallback=fallback,
+            client_text=text,
         )
         return export_trial_output(state)
 
@@ -271,6 +300,7 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
         error_code=None,
         trial=trial,
         fallback=fallback,
+        client_text=text,
     )
     return export_trial_output(state)
 
@@ -292,6 +322,10 @@ def trial_awaiting_confirmation(state: GlobalState, config: RunnableConfig) -> G
     )
     merge_trial(trial, extraction)
 
+    cancelled = _check_cancellation(trial, state)
+    if cancelled:
+        return cancelled
+
     conf = trial.get("confirmed")
 
     if conf is None:
@@ -304,6 +338,7 @@ def trial_awaiting_confirmation(state: GlobalState, config: RunnableConfig) -> G
             error_code=None,
             trial=trial,
             fallback=fallback,
+            client_text=text,
         )
         return export_trial_output(state)
 
@@ -317,6 +352,7 @@ def trial_awaiting_confirmation(state: GlobalState, config: RunnableConfig) -> G
             error_code=None,
             trial=trial,
             fallback=fallback,
+            client_text=text,
         )
         return export_trial_output(state)
 
@@ -330,6 +366,7 @@ def trial_awaiting_confirmation(state: GlobalState, config: RunnableConfig) -> G
         error_code=None,
         trial=trial,
         fallback=fallback,
+        client_text=text,
     )
     return export_trial_output(state)
 

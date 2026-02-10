@@ -43,3 +43,6 @@ class TrialExtraction(BaseModel):
 
     # Confirmação (apenas quando usuário respondeu sim/não)
     confirmed: Optional[bool] = Field(default=None, description="true para sim, false para não, null se não ficou claro.")
+
+    # Cancelamento (desistência do agendamento inteiro)
+    wants_to_cancel: Optional[bool] = Field(default=None, description="true se o cliente quer DESISTIR do agendamento inteiro. Não confundir com confirmed=false.")

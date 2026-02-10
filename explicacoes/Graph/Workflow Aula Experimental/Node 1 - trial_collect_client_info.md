@@ -90,6 +90,24 @@ O nó identifica quais ainda estão ausentes:
 missing = [f for f in REQUIRED_CLIENT_FIELDS if not trial.get(f)]
 ```
 
+### 3b. Verificação de Cancelamento (`_check_cancellation`)
+
+Logo após o merge, o nó verifica se o cliente quer cancelar o agendamento:
+
+```python
+cancelled = _check_cancellation(trial, state)
+if cancelled:
+    return cancelled
+```
+
+Se `wants_to_cancel == True`:
+- Seta `trial["stage"] = "cancelled"`
+- Gera mensagem de despedida via NLG (action: `cancel_confirmed`)
+- Retorna imediatamente — nenhuma lógica posterior executa
+- Exemplo: "Sem problemas! Quando quiser agendar, é só me chamar."
+
+Se `wants_to_cancel` é None/False, o fluxo continua normalmente.
+
 ## 🧭 Caminhos de Decisão do NÓ
 
 ### 🔴 Caso 4.1 — Existem dados faltantes

@@ -98,6 +98,25 @@ trial = {
 }
 ```
 
+### 3b. Verificação de Cancelamento (`_check_cancellation`)
+
+Logo após o merge, o nó verifica se o cliente quer cancelar o agendamento:
+
+```python
+cancelled = _check_cancellation(trial, state)
+if cancelled:
+    return cancelled
+```
+
+Se `wants_to_cancel == True`:
+- Seta `trial["stage"] = "cancelled"`
+- Gera mensagem de despedida via NLG (action: `cancel_confirmed`)
+- Retorna imediatamente — nenhuma lógica de confirmação executa
+
+**Importante:** `wants_to_cancel` tem prioridade sobre `confirmed`. Se o cliente disser "desisto de tudo", não importa se `confirmed` é True/False/None — o cancelamento prevalece porque é checado primeiro.
+
+Se `wants_to_cancel` é None/False, o fluxo continua normalmente.
+
 ### 4️⃣ Decisão com base em `confirmed`
 
 O nó lê o valor de `confirmed` do trial e segue um dos três caminhos:

@@ -40,6 +40,7 @@ def trial_route(state: GlobalState) -> str:
         "awaiting_confirmation": "trial_awaiting_confirmation",
         "book": "trial_book",
         "booked": "END",
+        "cancelled": "END",
     }
 
     return stage_to_node.get(stage, "trial_collect_client_info")
