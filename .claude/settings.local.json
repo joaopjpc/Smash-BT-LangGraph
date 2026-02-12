@@ -7,7 +7,12 @@
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:kalle.wtf)",
       "WebFetch(domain:shshell.com)",
-      "WebFetch(domain:docs.langchain.com)"
+      "WebFetch(domain:docs.langchain.com)",
+      "WebFetch(domain:docs.smith.langchain.com)",
+      "WebFetch(domain:langsmith-sdk.readthedocs.io)",
+      "WebFetch(domain:reference.langchain.com)",
+      "Bash(python -c:*)",
+      "Bash(python:*)"
     ]
   }
 }
