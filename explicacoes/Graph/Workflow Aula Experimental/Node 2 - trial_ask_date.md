@@ -5,7 +5,7 @@ Este nó é responsável por coletar e validar a data e o horário desejados par
 ## Objetivo do Nó
 Capturar, validar e consolidar a data e horário da aula experimental:
 - Data (`desired_date`) — deve ser uma **terça-feira de hoje ou futura** em formato **dd-mm** (dia-mês, ano assumido como atual)
-- Horário (`desired_time`) — em formato HH:MM (24h)
+- Horário (`desired_time`) — em formato HH:MM (24h), dentro dos **horários válidos**: manhã (07:00, 08:00, 09:00) ou tarde (14:00, 15:00, 16:00, 17:00). Aulas de 1h, início em hora cheia.
 
 Somente após ambos os campos estarem preenchidos **e validados**, o fluxo avança para o próximo estágio (`awaiting_confirmation`).
 
@@ -15,7 +15,7 @@ O nó segue o mesmo padrão consistente do subgrafo, mas com uma etapa extra em 
 1. Garante a existência do estado `trial`
 2. Usa LLM com Structured Output para extração (nenhuma heurística)
 3. Faz merge seguro, sem apagar dados já coletados
-4. **Valida regras de negócio** (formato da data, é terça?, é futura?, formato do horário)
+4. **Valida regras de negócio** (formato da data, é terça?, é futura?, formato do horário, horário dentro do range?)
 5. Decide o próximo `stage`
 6. Define a mensagem do turno em `trial.output`
 7. Exporta a saída para `specialists_outputs`
@@ -48,31 +48,54 @@ extract_trial_fields(
     client_text=text,
     stage="ask_date",
     trial_snapshot=trial,
+    messages=state.get("messages", []),  # últimas mensagens para contexto
 )
 ```
 
 #### Contexto temporal fornecido ao LLM
 
-O extractor calcula e injeta no prompt informacoes temporais para que o LLM consiga converter expressoes relativas como "terca que vem":
+O extractor usa `get_current_context()` de `core/datetime_utils.py` (módulo centralizado, compartilhado com a NLG) para injetar no prompt informações temporais:
 
 - **Dia da semana atual** — ex: `(domingo)` junto ao timestamp ISO
-- **Proximas 4 tercas-feiras** — ja calculadas em dd-mm, ex: `10-02, 17-02, 24-02, 03-03`
+- **Próximas 4 terças-feiras** — já calculadas em dd-mm, ex: `10-02, 17-02, 24-02, 03-03`
 
 Exemplo de como aparece no prompt enviado ao LLM:
 
 ```
-Data/hora atual (referencia): 2026-02-08T16:18 (domingo)
-Proximas tercas-feiras disponiveis: 10-02, 17-02, 24-02, 03-03
+Data/hora atual (referência): 2026-02-08T16:18 (domingo)
+Próximas terças-feiras disponíveis: 10-02, 17-02, 24-02, 03-03
 ```
 
-O LLM e instruido a usar a lista de tercas fornecida em vez de calcular datas por conta propria:
-- "terca que vem" → primeira da lista (`10-02`)
+O LLM segue **duas regras de cálculo de data**, dependendo do tipo de expressão:
+
+**Expressões simples** — o LLM calcula a partir da data atual:
+- "hoje" → calcula a data atual e converte para dd-mm
+- "amanhã" → data atual + 1 dia → dd-mm
+- "depois de amanhã" → data atual + 2 dias → dd-mm
+
+**Expressões relativas a terça** — o LLM usa a lista de terças fornecida:
+- "terça que vem" → primeira da lista (`10-02`)
+- "semana que vem" → primeira da lista (`10-02`)
 - "daqui a duas semanas" → segunda da lista (`17-02`)
 - "dia 10" → formata direto para `10-02`
 
-O calculo das proximas tercas e feito pela funcao `_next_tuesdays(n)` em `extractor.py`, que usa a mesma logica do validator (`weekday == 1` = terca). Se hoje for terca, hoje aparece como primeira da lista (o validator aceita hoje). Assim, expressoes como "hoje pode?" funcionam corretamente.
+O cálculo das próximas terças é feito pela função `_next_tuesdays(n)` em `core/datetime_utils.py`, que usa a mesma lógica do validator (`weekday == 1` = terça). Se hoje for terça, hoje aparece como primeira da lista (o validator aceita hoje). Assim, expressões como "hoje pode?" funcionam corretamente.
 
-> **Limite:** Se o cliente pedir uma terca alem das 4 fornecidas (mais de ~1 mes), o LLM precisaria calcular sozinho e pode errar. Nesse caso, o validator rejeita e o cliente e perguntado novamente. Para o caso de uso de aula experimental, 4 tercas e suficiente.
+> **Limite:** Se o cliente pedir uma terça além das 4 fornecidas (mais de ~1 mês), o LLM precisaria calcular sozinho e pode errar. Nesse caso, o validator rejeita e o cliente é perguntado novamente. Para o caso de uso de aula experimental, 4 terças é suficiente.
+
+#### Histórico de conversa para desambiguação
+
+O extractor também recebe as **últimas 4 mensagens** da conversa (`state["messages"]`) via o helper `_format_recent_messages()` em `extractor.py`. Isso permite que respostas curtas sejam entendidas no contexto:
+
+```
+Histórico recente da conversa:
+Bot: "Fechado para 10-02. Qual horário você prefere? (ex: 09:00 ou 14:00)"
+Cliente: "17"
+```
+
+No exemplo acima, sem o histórico o LLM receberia apenas `"17"` e não saberia que é um horário. Com o histórico, interpreta como `17:00`.
+
+O histórico é **apenas contexto** — o LLM extrai dados **somente da mensagem atual** do cliente. O prompt do extractor (`TRIAL_EXTRACT_SYSTEM`) instrui explicitamente isso na seção "HISTÓRICO DE CONVERSA".
 
 O retorno e um objeto estruturado `TrialExtraction`, por exemplo:
 
@@ -82,7 +105,7 @@ TrialExtraction(
     idade=None,                   # nao mencionou → None
     nivel=None,                   # nao mencionou → None
     desired_date="10-02",         # extraido e normalizado (dd-mm)
-    desired_time="19:00",         # extraido e normalizado
+    desired_time="09:00",         # extraido e normalizado (HH:MM, horário válido)
     confirmed=None
 )
 ```
@@ -105,7 +128,7 @@ trial = {
     "idade": 27,                 # preservado do Nó 1
     "nivel": "iniciante",        # preservado do Nó 1
     "desired_date": "10-02",     # ← novo (do extractor)
-    "desired_time": "19:00",     # ← novo (do extractor)
+    "desired_time": "09:00",     # ← novo (do extractor)
     ...
 }
 ```
@@ -145,6 +168,13 @@ A validação segue esta cadeia de checagens (em ordem):
 | 4 | `desired_date` é hoje ou futura? | `past_date` |
 | 5 | `desired_time` é None? | `missing_time` |
 | 6 | `desired_time` é formato HH:MM válido? | `invalid_time_format` |
+| 7 | `desired_time` está nos horários válidos? | `time_out_of_range` |
+
+Os **horários válidos** de início de aula experimental são definidos em `validators.py`:
+- Manhã: **07:00, 08:00, 09:00**
+- Tarde: **14:00, 15:00, 16:00, 17:00**
+
+Constantes: `VALID_START_TIMES` e `VALID_TIME_RANGES` (usada em fallbacks).
 
 A função `parse_ddmm_date` converte "dd-mm" em um `date` completo assumindo o ano atual. Se estamos em 2026, "10-02" vira `2026-02-10`.
 
@@ -172,8 +202,9 @@ trial["stage"] = "ask_date"
 | `invalid_date_format` | "A data precisa estar no formato dd-mm (ex: 10-02). Pode informar novamente?" |
 | `not_tuesday` | "A aula experimental acontece somente na terça. Qual terça (dd-mm) e horário você prefere?" |
 | `past_date` | "Essa data já passou. Qual a próxima terça (dd-mm) que você prefere?" |
-| `missing_time` | "Fechado para {data}. Qual horário você prefere? (ex: 19:00)" |
-| `invalid_time_format` | "O horário precisa estar claro (ex: 19:00). Qual horário você prefere?" |
+| `missing_time` | "Fechado para {data}. Qual horário você prefere? (ex: 10:00)" |
+| `invalid_time_format` | "O horário precisa estar claro (ex: 10:00). Qual horário você prefere?" |
+| `time_out_of_range` | "Esse horário não está disponível. As aulas são das 07:00 às 10:00 e das 14:00 às 18:00 (duração de uma hora). Qual horário você prefere?" |
 | (outro) | "Não consegui validar a data/horário. Pode informar a terça (dd-mm) e o horário novamente?" |
 
 3. Tenta gerar uma mensagem mais rica via NLG, passando o `error_code` para contexto:
@@ -189,7 +220,7 @@ trial["output"] = _fallback_or_nlg(
 
 4. Exporta a resposta para `state["specialists_outputs"]["trial"]`.
 
-> **Nota:** A NLG também recebe `client_text` (a mensagem original do cliente) para contextualizar a resposta. Ex: se o cliente perguntou "hoje pode?", a NLG reconhece a pergunta em vez de dar uma resposta genérica.
+> **Nota:** A NLG recebe `client_text` (mensagem original do cliente) e **contexto temporal** (`get_current_context()` de `core/datetime_utils.py`: data/hora atual, dia da semana, próximas terças). Isso permite respostas contextualizadas — ex: se o cliente perguntou "hoje pode?" numa quinta, a NLG responde "Hoje é quinta, mas a aula é na terça! A próxima é dd-mm...".
 
 > **Nota:** Quando o erro é `missing_time` mas `desired_date` já foi informada, o fallback reconhece que a data está ok e pede **apenas** o horário. Isso evita pedir tudo de novo.
 
@@ -212,9 +243,9 @@ trial["output"] = _fallback_or_nlg(
 )
 ```
 
-A NLG recebe o snapshot do trial (com data e horário) para compor um resumo:
+A NLG recebe o snapshot do trial (com data e horário) e o **contexto temporal** para compor um resumo:
 ```
-"Fechado: terça 10-02 às 19:00. Confirma o agendamento? (sim/não)"
+"Fechado: terça 10-02 às 09:00. Confirma o agendamento? (sim/não)"
 ```
 
 3. Exporta a saída para o estado global.
@@ -242,11 +273,12 @@ Mensagem 1: "Quero na terça dia 10 de fevereiro"
   → extractor: desired_date="10-02", desired_time=None
   → merge: trial["desired_date"] = "10-02"
   → validator: ok=False, error="missing_time"
-  → bot: "Fechado para 10-02. Qual horário você prefere? (ex: 19:00)"
+  → bot: "Fechado para 10-02. Qual horário você prefere? (ex: 09:00 ou 14:00)"
 
-Mensagem 2: "19:00"
-  → extractor: desired_date=None, desired_time="19:00"
-  → merge: desired_date preservado, trial["desired_time"] = "19:00"
-  → validator: ok=True
-  → bot: "Confirma sua aula na terça 10-02 às 19:00? (sim/não)"
+Mensagem 2: "9"
+  → extractor (com histórico): desired_date=None, desired_time="09:00"
+     (o histórico mostra que o bot acabou de pedir horário, então "9" → 09:00)
+  → merge: desired_date preservado, trial["desired_time"] = "09:00"
+  → validator: ok=True (09:00 está em VALID_START_TIMES)
+  → bot: "Confirma sua aula na terça 10-02 às 09:00? (sim/não)"
 ```

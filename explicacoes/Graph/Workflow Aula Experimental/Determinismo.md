@@ -30,10 +30,11 @@ Isso traz riscos:
 |--------|----------|---------|
 | Entender "João, 25, iniciante" | LLM (extractor) | Texto livre → precisa de interpretação |
 | Verificar se nome/idade/nivel existem | Código (nó) | Checagem simples, sem ambiguidade |
-| Normalizar "terça que vem" → "2026-02-10" | LLM (extractor) | Exige compreensão de linguagem natural |
+| Normalizar "terça que vem" → "10-02" | LLM (extractor) | Exige compreensão de linguagem natural |
 | Validar se é terça-feira | Código (validators) | Regra de negócio fixa, `weekday() == 1` |
+| Validar se horário está nos slots | Código (validators) | Regra de negócio fixa, `VALID_START_TIMES` |
 | Decidir próximo estágio | Código (edges do grafo) | Lógica condicional simples |
-| Redigir "Confirma terça 10/02 às 19h?" | LLM (NLG) | Texto natural, tom adequado |
+| Redigir "Confirma terça 10-02 às 09:00?" | LLM (NLG) | Texto natural, tom adequado |
 | Gravar no banco | Código (booking) | Ação crítica, não pode falhar por "vontade" do LLM |
 
 ## 🔍 Exemplos concretos
@@ -52,15 +53,34 @@ LLM pensa: "O cliente quer dia 12/02... vou chamar a tool de booking"
 
 **Como o código decide (determinístico):**
 ```
-1. Extractor retorna: desired_date="2026-02-12"
+1. Extractor retorna: desired_date="12-02"
 2. merge_trial grava no estado
-3. validators.validate_date_time("2026-02-12", ...)
-   → is_tuesday("2026-02-12") → weekday() == 2 (quarta) → FALHA
+3. validators.validate_date_time("12-02", ...)
+   → parse_ddmm_date("12-02") → date(2026,2,12).weekday() == 2 (quarta) → FALHA
    → ValidationResult(ok=False, error="not_tuesday")
 4. Nó mantém stage="ask_date"
 5. Bot: "A aula experimental acontece somente na terça. Qual terça você prefere?"
 ```
 → **Impossível** pular essa validação. O código sempre executa.
+
+### Exemplo 1b: Validação de horário
+
+```
+Cliente: "Terça 10-02 às 19:00"
+```
+
+**Como o código decide (determinístico):**
+```
+1. Extractor retorna: desired_date="10-02", desired_time="19:00"
+2. merge_trial grava no estado
+3. validators.validate_date_time("10-02", "19:00")
+   → data é terça ✅, futura ✅, formato ok ✅
+   → "19:00" in VALID_START_TIMES → FALHA (horários: 07-09, 14-17)
+   → ValidationResult(ok=False, error="time_out_of_range")
+4. Nó mantém stage="ask_date"
+5. Bot: "Esse horário não está disponível. As aulas são das 07:00 às 10:00 e das 14:00 às 18:00."
+```
+→ **Impossível** agendar em horário fora do range. `VALID_START_TIMES` em `validators.py` é a fonte de verdade.
 
 ### Exemplo 2: Campos obrigatórios
 
@@ -109,21 +129,25 @@ LLM pensa: "O cliente confirmou... vou dizer que está agendado"
 ## 🏗️ Onde cada tipo de lógica mora
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    LLM (não-determinístico)               │
-│                                                          │
-│  extractor.py  → "João, 25 anos" → {nome:"João",idade:25}│
-│  nlg.py        → contexto → "Oi João! Qual terça..."     │
-│                                                          │
-├──────────────────────────────────────────────────────────┤
-│                    CÓDIGO (determinístico)                │
-│                                                          │
-│  nodes.py      → merge, verificação de missing, stage    │
-│  validators.py → é terça? formato ISO? formato HH:MM?   │
-│  booking.py    → INSERT no banco                         │
-│  workflow.py   → edges, roteamento entre nós             │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    LLM (não-determinístico)                    │
+│                                                              │
+│  extractor.py  → "João, 25 anos" → {nome:"João",idade:25}    │
+│                  (recebe messages + contexto temporal)         │
+│  nlg.py        → contexto temporal → "Oi João! Qual terça..." │
+│                  (recebe get_current_context() de core/)       │
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│                    CÓDIGO (determinístico)                    │
+│                                                              │
+│  nodes.py         → merge, verificação de missing, stage     │
+│  validators.py    → é terça? formato dd-mm? HH:MM?          │
+│                     horário nos slots? (VALID_START_TIMES)   │
+│  datetime_utils.py→ contexto temporal (core/, compartilhado) │
+│  booking.py       → INSERT no banco                          │
+│  workflow.py      → edges, roteamento entre nós              │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## 🔄 Comparação: Agente com Tools vs Determinístico

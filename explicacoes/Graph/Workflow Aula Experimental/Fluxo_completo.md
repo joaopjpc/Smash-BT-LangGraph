@@ -62,7 +62,8 @@ text = state.get("client_input", "")  # "Oi, quero marcar uma aula experimental.
   - `stage = "collect_client_info"`
   - `trial_snapshot = {"stage": "collect_client_info", "booking_created": False, ...}`
   - `client_text = "Oi, quero marcar uma aula experimental."`
-  - `now_iso = "2026-02-07T15:30"` (horário atual)
+  - `messages = state.get("messages", [])` — últimas mensagens para contexto de desambiguação
+  - Contexto temporal via `get_current_context()` de `core/datetime_utils.py`: `now_iso`, `weekday`, `next_tuesdays`
 - Chama `llm.with_structured_output(TrialExtraction)` → força retorno Pydantic
 - LLM analisa o texto e retorna:
   ```python
@@ -251,7 +252,7 @@ trial = {
 
 ## TURNO 4 — Cliente informa data e horário
 
-**Input:** `"Quero terça 2026-02-10 às 19:00"`
+**Input:** `"Quero terça dia 10 de fevereiro às 9h"`
 
 ### 1–3. trial_router → trial_route
 
@@ -260,31 +261,36 @@ trial = {
 ### 4. Nó: `trial_ask_date`
 
 **4c. extract_trial_fields**
+
+O extractor recebe `messages=state.get("messages", [])` com histórico recente e contexto temporal (`core/datetime_utils.py`).
+
 ```python
 TrialExtraction(
     nome=None,
     idade=None,
     nivel=None,
-    desired_date="2026-02-10",    # ✅ extraído e normalizado YYYY-MM-DD
-    desired_time="19:00",         # ✅ extraído e normalizado HH:MM
+    desired_date="10-02",         # ✅ extraído e normalizado (dd-mm)
+    desired_time="09:00",         # ✅ extraído e normalizado (HH:MM)
     confirmed=None,
 )
 ```
 
 **4d. merge_trial**
-- `desired_date="2026-02-10"` → `trial["desired_date"] = "2026-02-10"` ✅
-- `desired_time="19:00"` → `trial["desired_time"] = "19:00"` ✅
+- `desired_date="10-02"` → `trial["desired_date"] = "10-02"` ✅
+- `desired_time="09:00"` → `trial["desired_time"] = "09:00"` ✅
 - Campos anteriores (nome, idade, nivel) → vieram None → **preservados**
 
 **4e. Validação determinística (validators.py)**
 
-Chama `v.validate_date_time("2026-02-10", "19:00")`:
+Chama `v.validate_date_time("10-02", "09:00")`:
 
 1. `desired_date` não é None → ✅
-2. `is_iso_date("2026-02-10")` → `date.fromisoformat("2026-02-10")` → ✅ formato válido
-3. `is_tuesday("2026-02-10")` → `date(2026,2,10).weekday()` → `1` (terça) → ✅ é terça!
-4. `desired_time` não é None → ✅
-5. `is_iso_time_hhmm("19:00")` → `time.fromisoformat("19:00")` → ✅ formato válido
+2. `parse_ddmm_date("10-02")` → `date(2026, 2, 10)` → ✅ formato válido
+3. `date(2026,2,10).weekday()` → `1` (terça) → ✅ é terça!
+4. `is_future_date(date(2026,2,10))` → ✅ data futura
+5. `desired_time` não é None → ✅
+6. `is_iso_time_hhmm("09:00")` → ✅ formato válido
+7. `"09:00" in VALID_START_TIMES` → ✅ horário dentro do range
 
 Resultado: `ValidationResult(ok=True)` → passa!
 
@@ -295,8 +301,9 @@ trial["stage"] = "awaiting_confirmation"
 
 **4g. NLG pede confirmação**
 - `action="ask_confirmation"`
-- fallback: `"Confirma sua aula experimental na terça 2026-02-10 às 19:00?"`
-- Bot (via NLG): `"Fechado: terça 2026-02-10 às 19:00. Confirma o agendamento? (sim/não)"`
+- NLG recebe contexto temporal (`core/datetime_utils.py`) + `client_text` + `trial_snapshot`
+- fallback: `"Confirma sua aula experimental na terça 10-02 às 09:00?"`
+- Bot (via NLG): `"Fechado: terça 10-02 às 09:00. Confirma o agendamento? (sim/não)"`
 
 ### Estado após Turno 4
 
@@ -306,9 +313,9 @@ trial = {
     "nome": "João",
     "idade": 27,
     "nivel": "iniciante",
-    "desired_date": "2026-02-10",        # ← NOVO
-    "desired_time": "19:00",             # ← NOVO
-    "output": "Fechado: terça 2026-02-10 às 19:00. Confirma o agendamento? (sim/não)",
+    "desired_date": "10-02",             # ← NOVO (dd-mm)
+    "desired_time": "09:00",             # ← NOVO (HH:MM, horário válido)
+    "output": "Fechado: terça 10-02 às 09:00. Confirma o agendamento? (sim/não)",
     ...
 }
 ```
@@ -317,11 +324,11 @@ trial = {
 
 ## TURNO 4b (alternativo) — Data inválida (não é terça)
 
-**Input:** `"Quero dia 2026-02-11 às 19:00"` (quarta-feira)
+**Input:** `"Quero dia 11-02 às 09:00"` (quarta-feira)
 
 **Validação:**
 ```
-is_tuesday("2026-02-11") → weekday() == 2 (quarta) → FALHA!
+parse_ddmm_date("11-02") → date(2026, 2, 11) → weekday() == 2 (quarta) → FALHA!
 → ValidationResult(ok=False, error="not_tuesday")
 ```
 
@@ -329,6 +336,24 @@ is_tuesday("2026-02-11") → weekday() == 2 (quarta) → FALHA!
 ```python
 trial["stage"] = "ask_date"  # continua no mesmo stage
 # NLG: "A aula experimental acontece somente na terça. Qual terça e horário você prefere?"
+```
+
+## TURNO 4c (alternativo) — Horário fora do range
+
+**Input:** `"Terça 10-02 às 19:00"`
+
+**Validação:**
+```
+parse_ddmm_date("10-02") → terça ✅, futura ✅
+is_iso_time_hhmm("19:00") → ✅
+"19:00" in VALID_START_TIMES → FALHA! (não está em 07:00–09:00 / 14:00–17:00)
+→ ValidationResult(ok=False, error="time_out_of_range")
+```
+
+**Resultado:**
+```python
+trial["stage"] = "ask_date"  # continua no mesmo stage
+# NLG: "Esse horário não tá disponível! As aulas são de manhã (07:00 às 10:00) ou à tarde (14:00 às 18:00)."
 ```
 
 > O stage NÃO avança. O cliente precisa informar uma terça válida.
@@ -405,7 +430,7 @@ os.getenv("DATABASE_URL")  # None (modo dev) ou "postgresql://..." (produção)
 trial["stage"] = "booked"
 trial["booking_created"] = True
 trial["booking_id"] = "dev_booking"
-trial["output"] = "(DEV) Agendado ✅ Te espero na terça 2026-02-10 às 19:00!"
+trial["output"] = "(DEV) Agendado ✅ Te espero na terça 10-02 às 09:00!"
 ```
 
 **Se modo PRODUÇÃO (com DATABASE_URL):**
@@ -414,17 +439,17 @@ from app.agents.aula_experimental.booking import create_trial_booking
 
 booking_id = create_trial_booking(
     customer_id="teste_001",
-    desired_date="2026-02-10",
-    desired_time="19:00",
+    desired_date="10-02",
+    desired_time="09:00",
 )
-# → Combina em datetime(2026, 2, 10, 19, 0)
+# → Combina em datetime(2026, 2, 10, 9, 0)
 # → INSERT INTO trial_class_booking (id, customer_id, desired_datetime, status='pending')
 # → Retorna UUID string
 
 trial["booking_id"] = "a1b2c3d4-..."
 trial["booking_created"] = True
 trial["stage"] = "booked"
-trial["output"] = "Agendado ✅ Te espero na terça 2026-02-10 às 19:00!"
+trial["output"] = "Agendado ✅ Te espero na terça 10-02 às 09:00!"
 ```
 
 **6d. export_trial_output** → copia output para `specialists_outputs["trial"]`
@@ -439,16 +464,16 @@ state = {
         "nome": "João",
         "idade": 27,
         "nivel": "iniciante",
-        "desired_date": "2026-02-10",
-        "desired_time": "19:00",
+        "desired_date": "10-02",            # formato dd-mm
+        "desired_time": "09:00",            # horário válido (VALID_START_TIMES)
         "confirmed": True,
         "booking_id": "a1b2c3d4-...",       # ← do banco (ou "dev_booking")
         "booking_created": True,             # ← idempotência
         "handoff_requested": False,
-        "output": "Agendado ✅ Te espero na terça 2026-02-10 às 19:00!",
+        "output": "Agendado ✅ Te espero na terça 10-02 às 09:00!",
     },
     "specialists_outputs": {
-        "trial": "Agendado ✅ Te espero na terça 2026-02-10 às 19:00!"
+        "trial": "Agendado ✅ Te espero na terça 10-02 às 09:00!"
     },
 }
 ```
@@ -551,11 +576,13 @@ Mensagem do cliente
 │                                 │
 │  1. ensure_trial_defaults()     │  → nodes.py (helper)
 │  2. extract_trial_fields()      │  → extractor.py → schemas.py → prompts.py (TRIAL_EXTRACT_SYSTEM)
+│     (recebe messages + contexto │     + core/datetime_utils.py (get_current_context)
+│      temporal para desambiguar) │
 │  3. merge_trial()               │  → nodes.py (helper) — acumula dados sem apagar
 │  3b. _check_cancellation()      │  → nodes.py (helper) — se wants_to_cancel, seta cancelled e retorna
-│  4. validators (se ask_date)    │  → validators.py (validate_date_time)
+│  4. validators (se ask_date)    │  → validators.py (validate_date_time + VALID_START_TIMES)
 │  5. Decide: avança ou repete?   │  → nodes.py (lógica determinística)
-│  6. _fallback_or_nlg()          │  → nlg.py (recebe client_text) → prompts.py (TRIAL_NLG_SYSTEM)
+│  6. _fallback_or_nlg()          │  → nlg.py (recebe client_text + contexto temporal) → prompts.py
 │  7. export_trial_output()       │  → nodes.py (helper)
 └─────────┬───────────────────────┘
           ▼

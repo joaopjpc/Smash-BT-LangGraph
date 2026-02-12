@@ -255,7 +255,7 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
         return cancelled
 
     # Usa validator do seu módulo (com fallback defensivo de API)
-    if hasattr(v, "validate_date_time"):
+    if hasattr(v, "validate_date_time"): 
         ok, code = _validation_result_to_code(
             v.validate_date_time(trial.get("desired_date"), trial.get("desired_time"))
         )
@@ -264,6 +264,13 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
 
     if not ok:
         trial["stage"] = "ask_date"
+
+        # Limpa campos inválidos do state pra não "vazar" pra próxima tentativa
+        if code in ("not_tuesday", "past_date", "invalid_date_format"):
+            trial.pop("desired_date", None)
+            trial.pop("desired_time", None)
+        elif code in ("invalid_time_format", "time_out_of_range"):
+            trial.pop("desired_time", None)
 
         # Mensagens por erro
         if code == "missing_date":

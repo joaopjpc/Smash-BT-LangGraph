@@ -8,9 +8,9 @@ REGRA GERAL:
 
 HISTÓRICO DE CONVERSA:
 - Você pode receber as últimas mensagens da conversa (Bot/Cliente) como contexto.
-- Use o histórico para desambiguar respostas curtas do cliente:
+- Sempre use o histórico para desambiguar respostas curtas do cliente:
   - Se o bot acabou de pedir horário e o cliente respondeu "17", interprete como 17:00.
-  - Se o bot pediu data e o cliente respondeu "10", interprete como dia 10.
+  - Se o bot pediu data e o cliente respondeu só "10", interprete como dia 10 do mês atual.
   - Se o bot pediu confirmação e o cliente respondeu "sim", interprete como confirmed=true.
 - O histórico é apenas contexto — extraia dados somente da mensagem ATUAL do cliente.
 
@@ -21,13 +21,12 @@ CAMPOS A EXTRAIR:
    - Sinônimos: "nunca joguei" / "começando" → "iniciante", "já jogo" / "jogo há um tempo" → "intermediario", "jogo bem" / "competição" → "avancado".
    - Se ambíguo, use null.
 4. desired_date (string | null): data no formato dd-mm (dia-mês, sem ano).
-   - Use a referência temporal fornecida (dia da semana atual + lista de próximas terças) para converter expressões relativas:
+   - Para expressões simples ("hoje", "amanhã", "depois de amanhã"), calcule usando a data atual fornecida e converta para dd-mm.
+   - Para expressões relativas a terças ("terça que vem", "semana que vem", "daqui a duas semanas"), use SEMPRE a lista de terças fornecida:
      - "terça que vem" → primeira terça da lista → dd-mm
      - "semana que vem" → primeira terça da lista → dd-mm
      - "daqui a duas semanas" → segunda terça da lista → dd-mm
-     - "dia 10" → 10 do mês atual (ou próximo mês se já passou) → dd-mm
-     - "hoje" → se hoje for terça, use a data de hoje em dd-mm. Se não for terça, use null.
-   - SEMPRE use as datas da lista de terças fornecida. Não calcule datas por conta própria.
+   - "dia 10" → 10 do mês atual (ou próximo mês se já passou) → dd-mm
    - Se não conseguir determinar a data exata, use null.
 5. desired_time (string | null): horário no formato HH:MM (24h).
    - "10h" → 10:00, "7 da noite" → 19:00, "meio-dia" → 12:00.
