@@ -177,6 +177,7 @@ def trial_collect_client_info(state: GlobalState, config: RunnableConfig) -> Glo
         client_text=text,
         stage="collect_client_info",
         trial_snapshot=trial,
+        messages=state.get("messages", []),
     )
     merge_trial(trial, extraction)                      # Faz merge seguro dos dados extraídos pro trial atual
 
@@ -208,7 +209,7 @@ def trial_collect_client_info(state: GlobalState, config: RunnableConfig) -> Glo
         return export_trial_output(state)  # Exporta saída pro estado global "specialists_outputs" e retorna estado atualizado
 
     trial["stage"] = "ask_date"   # Caso não tenha campos faltando, avança para próxima etapa: pedir data/horário
-    fallback = "A aula experimental é toda terça. Qual terça (dd-mm) e horário você prefere? Ex: 10-02 às 19:00."
+    fallback = "A aula experimental é toda terça. Qual terça (dd-mm) e horário você prefere? Ex: 10-02 às 10:00."
 
     # trial["output"] = _fallback_or_nlg(  # Chama NLG ou usa fallback pra pedir data/horário
     #     llm=llm,
@@ -245,6 +246,7 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
         client_text=text,
         stage="ask_date",
         trial_snapshot=trial,
+        messages=state.get("messages", []),
     )
     merge_trial(trial, extraction)
 
@@ -265,7 +267,7 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
 
         # Mensagens por erro
         if code == "missing_date":
-            fallback = "Me diga a data exata da terça (dd-mm) e o horário. Ex: 10-02 às 19:00."
+            fallback = "Me diga a data exata da terça (dd-mm) e o horário. Ex: 10-02 às 10:00."
         elif code == "invalid_date_format":
             fallback = "A data precisa estar no formato dd-mm (ex: 10-02). Pode informar novamente?"
         elif code == "not_tuesday":
@@ -274,9 +276,11 @@ def trial_ask_date(state: GlobalState, config: RunnableConfig) -> GlobalState:
             fallback = "Essa data já passou. Qual a próxima terça (dd-mm) que você prefere?"
         elif code == "missing_time":
             dd = trial.get("desired_date") or "essa terça"
-            fallback = f"Fechado para {dd}. Qual horário você prefere? (ex: 19:00)"
+            fallback = f"Fechado para {dd}. Qual horário você prefere? (ex: 10:00)"
         elif code == "invalid_time_format":
-            fallback = "O horário precisa estar claro (ex: 19:00). Qual horário você prefere?"
+            fallback = "O horário precisa estar claro (ex: 10:00). Qual horário você prefere?"
+        elif code == "time_out_of_range":
+            fallback = "Esse horário não está disponível. As aulas são das 07:00 às 10:00 e das 14:00 às 18:00 (duração de uma hora). Qual horário você prefere?"
         else:
             fallback = "Não consegui validar a data/horário. Pode informar a terça (dd-mm) e o horário novamente?"
 
@@ -319,6 +323,7 @@ def trial_awaiting_confirmation(state: GlobalState, config: RunnableConfig) -> G
         client_text=text,
         stage="awaiting_confirmation",
         trial_snapshot=trial,
+        messages=state.get("messages", []),
     )
     merge_trial(trial, extraction)
 

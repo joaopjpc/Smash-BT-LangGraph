@@ -41,6 +41,12 @@ class ValidationResult(BaseModel):
     error: Optional[str] = None
 
 
+# Horários válidos de início de aula experimental (aulas de 1h)
+# Manhã: 07:00–10:00 | Tarde: 14:00–18:00
+VALID_START_TIMES = ("07:00", "08:00", "09:00", "14:00", "15:00", "16:00", "17:00")
+VALID_TIME_RANGES = "07:00 às 10:00 e 14:00 às 18:00"
+
+
 def parse_ddmm_date(s: str) -> dt.date | None:
     """Converte 'dd-mm' em date assumindo o ano atual. Retorna None se inválido."""
     try:
@@ -79,5 +85,7 @@ def validate_date_time(desired_date: Optional[str], desired_time: Optional[str])
         return ValidationResult(ok=False, error="missing_time")
     if not is_iso_time_hhmm(desired_time):
         return ValidationResult(ok=False, error="invalid_time_format")
+    if desired_time not in VALID_START_TIMES:
+        return ValidationResult(ok=False, error="time_out_of_range")
 
     return ValidationResult(ok=True)

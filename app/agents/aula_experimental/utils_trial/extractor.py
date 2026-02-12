@@ -3,7 +3,7 @@
 extractor.py — Camada única de extração via LLM (Structured Output)
 
 Este módulo é o "único lugar" onde o agente fala com o LLM para extrair dados do texto
-do cliente e convertê-los em uma estrutura validada (TrialExtraction).
+do cliente e convertê-los em uma estrutura validada (TrialExtraction)(usa as descriptions do pydantic).
 
 Objetivo:
 - Transformar texto livre -> dados confiáveis (Pydantic) sem heurística manual.
@@ -31,14 +31,36 @@ Benefícios:
 """
 
 from __future__ import annotations
+from typing import Optional, List
+
+from langchain_core.messages import HumanMessage, AIMessage
+
 from app.agents.aula_experimental.utils_trial.schemas import TrialExtraction
 from app.agents.aula_experimental.utils_trial.prompts import TRIAL_EXTRACT_SYSTEM
 from app.core.datetime_utils import get_current_context
 
 
+def _format_recent_messages(messages: list, n: int = 4) -> str:
+    """Formata as últimas n mensagens (Human/AI) como texto para o prompt."""
+    if not messages:
+        return ""
+    recent = messages[-n:]
+    lines = []
+    for msg in recent:
+        if isinstance(msg, HumanMessage):
+            lines.append(f'Cliente: "{msg.content}"')
+        elif isinstance(msg, AIMessage):
+            lines.append(f'Bot: "{msg.content}"')
+    if not lines:
+        return ""
+    return "Histórico recente da conversa:\n" + "\n".join(lines)
+
+
 # Função para construir o prompt do usuário informando o contexto atual (stage atual, snapshot do trial, texto do cliente)
 def build_extract_user_prompt(*, client_text: str, stage: str, trial_snapshot: dict,
-                               now_iso: str, weekday: str, next_tuesdays: list[str]) -> str:
+                               now_iso: str, weekday: str, next_tuesdays: list[str],
+                               recent_history: str = "") -> str:
+    history_block = f"\n{recent_history}\n" if recent_history else ""
     return f"""
 Data/hora atual (referência): {now_iso} ({weekday})
 Próximas terças-feiras disponíveis: {', '.join(next_tuesdays)}
@@ -47,7 +69,7 @@ Etapa do fluxo (stage): {stage}
 
 Estado atual conhecido (trial_snapshot):
 {trial_snapshot}
-
+{history_block}
 Mensagem do cliente:
 {client_text}
 
@@ -55,8 +77,10 @@ Extraia somente o que estiver na mensagem do cliente.
 """
 
 # Função principal de extração usando LLM e schema definido
-def extract_trial_fields(llm, *, client_text: str, stage: str, trial_snapshot: dict) -> TrialExtraction:
+def extract_trial_fields(llm, *, client_text: str, stage: str, trial_snapshot: dict,
+                         messages: Optional[List] = None) -> TrialExtraction:
     ctx = get_current_context()
+    recent_history = _format_recent_messages(messages or [], n=4)
 
     user_prompt = build_extract_user_prompt(
         client_text=client_text,
@@ -65,10 +89,11 @@ def extract_trial_fields(llm, *, client_text: str, stage: str, trial_snapshot: d
         now_iso=ctx["now_iso"],
         weekday=ctx["weekday"],
         next_tuesdays=ctx["next_tuesdays"],
+        recent_history=recent_history,
     )
 
     # Padrão structured output
-    extractor = llm.with_structured_output(TrialExtraction)  # se disponível no seu wrapper
+    extractor = llm.with_structured_output(TrialExtraction)
     return extractor.invoke([
         {"role": "system", "content": TRIAL_EXTRACT_SYSTEM},
         {"role": "user", "content": user_prompt},
