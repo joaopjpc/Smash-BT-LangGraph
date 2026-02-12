@@ -31,30 +31,9 @@ Benefícios:
 """
 
 from __future__ import annotations
-from datetime import datetime, timedelta
 from app.agents.aula_experimental.utils_trial.schemas import TrialExtraction
 from app.agents.aula_experimental.utils_trial.prompts import TRIAL_EXTRACT_SYSTEM
-
-DIAS_SEMANA = [
-    "segunda-feira", "terça-feira", "quarta-feira",
-    "quinta-feira", "sexta-feira", "sábado", "domingo",
-]
-
-
-def _next_tuesdays(n: int = 4) -> list[str]:
-    """Retorna as próximas N terças-feiras futuras em formato dd-mm."""
-    today = datetime.now().date()
-    days_ahead = (1 - today.weekday()) % 7  # 1 = terça
-    tuesdays = []
-    if days_ahead == 0:
-        # hoje é terça → incluir hoje na lista
-        tuesdays.append(f"{today.day:02d}-{today.month:02d}")
-        days_ahead = 7  # próximas terças começam daqui a 7 dias
-    d = today + timedelta(days=days_ahead)
-    for _ in range(n):
-        tuesdays.append(f"{d.day:02d}-{d.month:02d}")
-        d += timedelta(weeks=1)
-    return tuesdays
+from app.core.datetime_utils import get_current_context
 
 
 # Função para construir o prompt do usuário informando o contexto atual (stage atual, snapshot do trial, texto do cliente)
@@ -77,18 +56,15 @@ Extraia somente o que estiver na mensagem do cliente.
 
 # Função principal de extração usando LLM e schema definido
 def extract_trial_fields(llm, *, client_text: str, stage: str, trial_snapshot: dict) -> TrialExtraction:
-    now = datetime.now()
-    now_iso = now.isoformat(timespec="minutes")
-    weekday = DIAS_SEMANA[now.weekday()]
-    tuesdays = _next_tuesdays(4)
+    ctx = get_current_context()
 
     user_prompt = build_extract_user_prompt(
         client_text=client_text,
         stage=stage,
         trial_snapshot=trial_snapshot,
-        now_iso=now_iso,
-        weekday=weekday,
-        next_tuesdays=tuesdays,
+        now_iso=ctx["now_iso"],
+        weekday=ctx["weekday"],
+        next_tuesdays=ctx["next_tuesdays"],
     )
 
     # Padrão structured output

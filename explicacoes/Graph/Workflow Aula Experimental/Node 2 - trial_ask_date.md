@@ -4,7 +4,7 @@ Este nó é responsável por coletar e validar a data e o horário desejados par
 
 ## Objetivo do Nó
 Capturar, validar e consolidar a data e horário da aula experimental:
-- Data (`desired_date`) — deve ser uma **terça-feira futura** em formato **dd-mm** (dia-mês, ano assumido como atual)
+- Data (`desired_date`) — deve ser uma **terça-feira de hoje ou futura** em formato **dd-mm** (dia-mês, ano assumido como atual)
 - Horário (`desired_time`) — em formato HH:MM (24h)
 
 Somente após ambos os campos estarem preenchidos **e validados**, o fluxo avança para o próximo estágio (`awaiting_confirmation`).
@@ -70,7 +70,7 @@ O LLM e instruido a usar a lista de tercas fornecida em vez de calcular datas po
 - "daqui a duas semanas" → segunda da lista (`17-02`)
 - "dia 10" → formata direto para `10-02`
 
-O calculo das proximas tercas e feito pela funcao `_next_tuesdays(n)` em `extractor.py`, que usa a mesma logica do validator (`weekday == 1` = terca) e pula o dia atual caso hoje seja terca (pois o validator exige data estritamente futura).
+O calculo das proximas tercas e feito pela funcao `_next_tuesdays(n)` em `extractor.py`, que usa a mesma logica do validator (`weekday == 1` = terca). Se hoje for terca, hoje aparece como primeira da lista (o validator aceita hoje). Assim, expressoes como "hoje pode?" funcionam corretamente.
 
 > **Limite:** Se o cliente pedir uma terca alem das 4 fornecidas (mais de ~1 mes), o LLM precisaria calcular sozinho e pode errar. Nesse caso, o validator rejeita e o cliente e perguntado novamente. Para o caso de uso de aula experimental, 4 tercas e suficiente.
 
@@ -142,7 +142,7 @@ A validação segue esta cadeia de checagens (em ordem):
 | 1 | `desired_date` é None? | `missing_date` |
 | 2 | `desired_date` é formato dd-mm válido? | `invalid_date_format` |
 | 3 | `desired_date` é uma terça-feira? | `not_tuesday` |
-| 4 | `desired_date` é uma data futura? | `past_date` |
+| 4 | `desired_date` é hoje ou futura? | `past_date` |
 | 5 | `desired_time` é None? | `missing_time` |
 | 6 | `desired_time` é formato HH:MM válido? | `invalid_time_format` |
 
@@ -188,6 +188,8 @@ trial["output"] = _fallback_or_nlg(
 ```
 
 4. Exporta a resposta para `state["specialists_outputs"]["trial"]`.
+
+> **Nota:** A NLG também recebe `client_text` (a mensagem original do cliente) para contextualizar a resposta. Ex: se o cliente perguntou "hoje pode?", a NLG reconhece a pergunta em vez de dar uma resposta genérica.
 
 > **Nota:** Quando o erro é `missing_time` mas `desired_date` já foi informada, o fallback reconhece que a data está ok e pede **apenas** o horário. Isso evita pedir tudo de novo.
 

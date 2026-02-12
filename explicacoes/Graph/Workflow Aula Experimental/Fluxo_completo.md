@@ -555,7 +555,7 @@ Mensagem do cliente
 │  3b. _check_cancellation()      │  → nodes.py (helper) — se wants_to_cancel, seta cancelled e retorna
 │  4. validators (se ask_date)    │  → validators.py (validate_date_time)
 │  5. Decide: avança ou repete?   │  → nodes.py (lógica determinística)
-│  6. _fallback_or_nlg()          │  → nlg.py → prompts.py (TRIAL_NLG_SYSTEM)
+│  6. _fallback_or_nlg()          │  → nlg.py (recebe client_text) → prompts.py (TRIAL_NLG_SYSTEM)
 │  7. export_trial_output()       │  → nodes.py (helper)
 └─────────┬───────────────────────┘
           ▼
