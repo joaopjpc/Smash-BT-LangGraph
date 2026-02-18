@@ -22,6 +22,8 @@ Thumbs.db
 
 .langgraph_api/
 
+app/agents/faq/vectorstore/
+
 
 CLAUDE.md
 AGENT.md 

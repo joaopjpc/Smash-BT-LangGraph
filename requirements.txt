@@ -7,3 +7,6 @@ psycopg[binary]>=3.1
 python-dotenv>=1.0
 langgraph-cli[inmem]>=0.2.0
 grandalf
+langchain-text-splitters>=0.2.0
+langchain-community>=0.2.0
+faiss-cpu>=1.7

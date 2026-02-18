@@ -19,8 +19,37 @@ from typing import Optional, Literal, List
 from pydantic import BaseModel, Field
 from langchain_core.runnables import RunnableConfig
 
+from langchain_core.messages import HumanMessage, AIMessage
+
 from app.core.state import GlobalState
 from app.agents.aula_experimental.utils_trial.get_llm import get_llm
+
+
+_MAX_HISTORY_MESSAGES = 6  # ultimas 3 trocas (cliente+assistente)
+
+
+def _format_history(messages, exclude_last: bool = True) -> str:
+    """Formata ultimas mensagens como contexto de conversa legivel."""
+    msgs = messages[:-1] if exclude_last and messages else messages
+    recent = msgs[-_MAX_HISTORY_MESSAGES:] if msgs else []
+    if not recent:
+        return ""
+    lines = []
+    for msg in recent:
+        if isinstance(msg, HumanMessage):
+            role = "Cliente"
+        elif isinstance(msg, AIMessage):
+            role = "Assistente"
+        else:
+            continue
+        content = msg.content
+        if isinstance(content, list):
+            content = " ".join(
+                b.get("text", "") for b in content
+                if isinstance(b, dict) and b.get("type") == "text"
+            )
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -105,11 +134,19 @@ def triage(state: GlobalState, config: RunnableConfig) -> dict:
     text = state.get("client_input", "")
     trial = state.get("trial", {})
     stage = trial.get("stage")
+    messages = state.get("messages", [])
 
-    # Montar contexto de conversa ativa (se houver)
-    active_context = None
-    if stage and stage not in ("booked", "cancelled"): # se tiver stage e nao for etapa final (booked/cancelled), considera que cliente esta no meio do agendamento
-        active_context = f"Cliente esta no meio de um agendamento de aula experimental (etapa: {stage})"
+    # Montar contexto: historico de conversa + estado de agendamento ativo
+    context_parts = []
+
+    history = _format_history(messages)
+    if history:
+        context_parts.append(f"Historico recente da conversa:\n{history}")
+
+    if stage and stage not in ("booked", "cancelled"):
+        context_parts.append(f"Cliente esta no meio de um agendamento de aula experimental (etapa: {stage})")
+
+    active_context = "\n\n".join(context_parts) if context_parts else None
 
     result = _classify_intent(text, active_context)
 

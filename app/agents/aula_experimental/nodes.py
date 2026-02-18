@@ -117,20 +117,18 @@ def _validation_result_to_code(res: Any) -> tuple[bool, Optional[str]]:
     return False, "validation_error"
 
 # Função para exportar saída do trial pro estado global "specialists_outputs"
-def export_trial_output(state: GlobalState) -> GlobalState:
+def export_trial_output(state: GlobalState) -> dict:
     """
-    Padroniza a saída do especialista:
-    - copia trial.output para specialists_outputs['trial']
-    Isso ajuda o merge global a compor final_answer.
+    Retorna dict com trial atualizado + specialists_outputs.
+    Usa return {} (padrao LangGraph) em vez de mutar state diretamente.
+    O LangGraph aplica os reducers (operator.or_) automaticamente.
     """
-    trial = ensure_trial_defaults(state)      # Garante trial no estado global
-    out = (trial.get("output") or "").strip() # Pega output do trial 
-
-    if out:
-        state.setdefault("specialists_outputs", {}) # Garante specialists_outputs existe
-        state["specialists_outputs"]["trial"] = out # Seta saída do trial no specialists_outputs
-
-    return state
+    trial = state.get("trial") or {}
+    out = (trial.get("output") or "").strip()
+    return {
+        "trial": trial,
+        "specialists_outputs": {"trial": out},
+    }
 
 # Função auxiliar para chamar NLG (com fallback caso LLM falhe)
 def _fallback_or_nlg(*, stage: str, action: str, missing_fields: Optional[list[str]], error_code: Optional[str], trial: Dict[str, Any], fallback: str, client_text: Optional[str] = None) -> str:

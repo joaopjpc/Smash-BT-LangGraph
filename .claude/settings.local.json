@@ -12,7 +12,9 @@
       "WebFetch(domain:langsmith-sdk.readthedocs.io)",
       "WebFetch(domain:reference.langchain.com)",
       "Bash(python -c:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(findstr:*)",
+      "Bash(cd:*)"
     ]
   }
 }

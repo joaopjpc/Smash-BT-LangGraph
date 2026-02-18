@@ -40,7 +40,15 @@ def input_node(state: GlobalState, config: RunnableConfig) -> dict:
     messages = state.get("messages", [])
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
-            return {"client_input": msg.content}
+            content = msg.content
+            # Studio pode enviar content como lista de blocos (multimodal)
+            # Ex: [{"type": "text", "text": "..."}]
+            if isinstance(content, list):
+                content = " ".join(
+                    block.get("text", "") for block in content
+                    if isinstance(block, dict) and block.get("type") == "text"
+                )
+            return {"client_input": content}
     return {}
 
 
