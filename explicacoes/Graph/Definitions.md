@@ -4,9 +4,9 @@ Objetivo
 - Atendente do CT Smash Beach Tennis com fluxo de Aula Experimental e FAQ.
 - O grafo decide a lógica; especialistas respondem com base em regras claras.
 
-Nós (alto nível)
+Nós (alto nível):
 
-Assistente (nó orquestrador)
+Triage (nó orquestrador)
 - Recebe a mensagem do cliente (WPP no futuro).
 - Encerra o grafo e devolve a resposta final ao canal.
 - Decide se precisa de especialistas e aciona o roteador.

@@ -82,8 +82,8 @@ def get_faq_retriever() -> FAISS:
                 allow_dangerous_deserialization=True,
             )
         else:
-            _vectorstore = build_and_save_vectorstore()
-    return _vectorstore
+            _vectorstore = build_and_save_vectorstore() # builda do zero e salva para futuras chamadas
+    return _vectorstore # retorna o singleton carregado ou criado
 
 
 # Funcao principal: busca os top-K chunks mais relevantes e retorna como string formatada.
