@@ -1,4 +1,4 @@
-# Smash-BT-LangGraph
+# 🏐 Smash-BT-LangGraph
 
 Sistema multi-agente para atendimento da CT Smash Beach Tennis, construido com [LangGraph](https://github.com/langchain-ai/langgraph).
 
@@ -8,11 +8,11 @@ O projeto faz duas coisas hoje:
 
 Roda no **LangGraph Studio** para teste e visualizacao do grafo.
 
-> **Nota:** Os agendamentos ainda nao sao persistidos em banco de dados. O chat esta totalmente funcional em modo dev (sem PostgreSQL). O booking e simulado localmente.
+> ⚠️ Os agendamentos ainda nao sao persistidos em banco de dados. O chat esta totalmente funcional em modo dev (sem PostgreSQL). O booking e simulado localmente.
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # 1. Instalar dependencias
@@ -33,7 +33,7 @@ O Studio abre no navegador com o grafo visual. Basta digitar mensagens no chat p
 
 ---
 
-## Arquitetura
+## 🏗️ Arquitetura
 
 ### Visao geral do grafo
 
@@ -51,7 +51,7 @@ O projeto esta organizado em dois niveis: **core** (orquestracao) e **agents** (
 
 ---
 
-## Core (`app/core/`)
+## 🧠 Core (`app/core/`)
 
 Camada de orquestracao que conecta os agentes.
 
@@ -70,7 +70,7 @@ Recebe as saidas de todos os especialistas (`specialists_outputs`) e compoe uma 
 
 ---
 
-## Trial — Aula Experimental (`app/agents/aula_experimental/`)
+## 📅 Trial — Aula Experimental (`app/agents/aula_experimental/`)
 
 Fluxo de agendamento de aula experimental. Implementado como **workflow deterministico**, nao como agente autonomo.
 
@@ -110,7 +110,7 @@ Em qualquer etapa, se o cliente disser "deixa pra la" ou similar, o extractor de
 
 ---
 
-## FAQ — RAG (`app/agents/faq/`)
+## 📚 FAQ — RAG (`app/agents/faq/`)
 
 Responde perguntas sobre o CT usando Retrieval-Augmented Generation.
 
@@ -120,11 +120,11 @@ Responde perguntas sobre o CT usando Retrieval-Augmented Generation.
 pergunta → FAISS similarity search → top-4 chunks → LLM gera resposta
 ```
 
-### Knowledge base
+### 📄 Knowledge base
 
 A base de conhecimento e um unico arquivo markdown (`knowledge/ct_smash.md`) com informacoes do CT: estrutura, endereco, planos, horarios, aula experimental, regras de acesso e FAQ.
 
-### Por que FAISS?
+### 🔍 Por que FAISS?
 
 - **Persistencia em disco** — embeddings sao gerados uma unica vez e salvos localmente (`vectorstore/`). Nas proximas execucoes, carrega do disco sem chamar API de embeddings
 - **Sem infraestrutura** — nao precisa de servidor de banco vetorial (Pinecone, Weaviate, etc.)
@@ -144,7 +144,7 @@ O retrieval usa apenas o `client_input` como query (sem historico, pra nao dilui
 
 ---
 
-## Estado
+## 📦 Estado
 
 O estado global (`GlobalState`) e compartilhado entre todos os modulos:
 
@@ -162,7 +162,7 @@ Cada especialista retorna suas saidas no formato `{"specialists_outputs": {"nome
 
 ---
 
-## Estrutura de diretorios
+## 📁 Estrutura de diretorios
 
 ```
 app/
@@ -199,7 +199,7 @@ langgraph.json         # configuracao do LangGraph Studio
 
 ---
 
-## Variaveis de ambiente
+## 🔑 Variaveis de ambiente
 
 | Variavel | Obrigatorio | Descricao |
 |---|---|---|
@@ -210,21 +210,21 @@ langgraph.json         # configuracao do LangGraph Studio
 
 ---
 
-## Modo dev vs producao
+## ⚙️ Modo dev vs producao
 
 | | Modo dev (atual) | Producao |
 |---|---|---|
 | `DATABASE_URL` | Nao configurada | `postgresql://...` |
 | Booking | Simulado (`booking_id = "dev_booking"`) | INSERT no PostgreSQL |
-| Chat | Funcional | Funcional |
-| FAQ/RAG | Funcional | Funcional |
-| Triage | Funcional | Funcional |
+| Chat | ✅ Funcional | ✅ Funcional |
+| FAQ/RAG | ✅ Funcional | ✅ Funcional |
+| Triage | ✅ Funcional | ✅ Funcional |
 
 O schema do banco (`app/db/schema.sql`) e o `docker-compose.yml` ja estao preparados para quando a persistencia for conectada.
 
 ---
 
-## Rebuildar embeddings
+## 🔄 Rebuildar embeddings
 
 Se o arquivo `ct_smash.md` for alterado, os embeddings precisam ser recriados:
 
@@ -238,7 +238,7 @@ Ou simplesmente deletar a pasta `vectorstore/` e reiniciar — o retriever rebui
 
 ---
 
-## Proximos passos
+## 🔮 Proximos passos
 
-- **Testes mais robustos** — expandir a suite em `tests/` com cenarios de borda (inputs vazios, datas ambiguas, conversas longas), testes unitarios dos validators e testes end-to-end do grafo completo (triage → especialista → merge)
-- **Persistencia com banco de dados** — conectar o booking ao PostgreSQL (`DATABASE_URL` no `.env`) para que os agendamentos sejam de fato gravados. O schema (`app/db/schema.sql`) e o `docker-compose.yml` ja estao prontos
+- 🧪 **Testes mais robustos** — expandir a suite em `tests/` com cenarios de borda (inputs vazios, datas ambiguas, conversas longas), testes unitarios dos validators e testes end-to-end do grafo completo (triage → especialista → merge)
+- 🗄️ **Persistencia com banco de dados** — conectar o booking ao PostgreSQL (`DATABASE_URL` no `.env`) para que os agendamentos sejam de fato gravados. O schema (`app/db/schema.sql`) e o `docker-compose.yml` ja estao prontos
