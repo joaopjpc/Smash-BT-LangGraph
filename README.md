@@ -1,5 +1,5 @@
 # 🏐 Smash-BT-LangGraph
-##🚨Whatsapp inativo🚨
+## 🚨Whatsapp inativo🚨
 
 Sistema multi-agente para atendimento da CT Smash Beach Tennis, construido com [LangGraph](https://github.com/langchain-ai/langgraph).
 
