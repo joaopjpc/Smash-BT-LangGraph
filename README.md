@@ -3,6 +3,18 @@
 
 Sistema multi-agente para atendimento da CT Smash Beach Tennis, construido com [LangGraph](https://github.com/langchain-ai/langgraph).
 
+### 🖼️ Funcionamento no LangGraph Studio
+
+| 1 | 2 |
+|---|---|
+| ![print1](prints/print1.png) | ![print2](prints/print2.png) |
+
+| 3 | 4 |
+|---|---|
+| ![print3](prints/print3.png) | ![print4](prints/print4.png) |
+
+---
+
 O projeto faz duas coisas hoje:
 - **Agendar aula experimental** — fluxo completo de conversa com coleta de dados, validacao de regras de negocio e confirmacao
 - **Responder perguntas sobre o CT** — FAQ com busca semantica (RAG) sobre planos, horarios, estrutura e regras
@@ -10,6 +22,8 @@ O projeto faz duas coisas hoje:
 Roda no **LangGraph Studio** para teste e visualizacao do grafo.
 
 > ⚠️ Os agendamentos ainda nao sao persistidos em banco de dados. O chat esta totalmente funcional em modo dev (sem PostgreSQL). O booking e simulado localmente.
+
+> 🎯 **Este projeto e um workflow, nao um agente autonomo.** A IA nao decide o proximo passo do fluxo nem o que fazer em cada etapa — ela e usada pontualmente para extrair dados e redigir respostas naturais. Todo o controle sobre validacoes, roteamento e regras de negocio e feito por codigo deterministico. Veja a secao [Por que workflow e nao agente?](#por-que-workflow-e-nao-agente) para mais detalhes.
 
 ---
 
