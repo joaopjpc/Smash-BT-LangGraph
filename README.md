@@ -23,7 +23,7 @@ Roda no **LangGraph Studio** para teste e visualizacao do grafo.
 
 > ⚠️ Os agendamentos ainda nao sao persistidos em banco de dados. O chat esta totalmente funcional em modo dev (sem PostgreSQL). O booking e simulado localmente.
 
-> 🎯 **Este projeto e um workflow, nao um agente autonomo.** A IA nao decide o proximo passo do fluxo nem o que fazer em cada etapa — ela e usada pontualmente para extrair dados e redigir respostas naturais. Todo o controle sobre validacoes, roteamento e regras de negocio e feito por codigo deterministico. Veja a secao [Por que workflow e nao agente?](#por-que-workflow-e-nao-agente) para mais detalhes.
+> 🎯 **Este projeto é um workflow, nao um agente autonomo.** A IA nao decide o proximo passo do fluxo nem o que fazer em cada etapa — ela e usada pontualmente para extrair dados e redigir respostas naturais. Todo o controle sobre validacoes, roteamento e regras de negocio e feito por codigo deterministico. Veja a secao [Por que workflow e nao agente?](#por-que-workflow-e-nao-agente) para mais detalhes.
 
 ---
 
